@@ -945,8 +945,14 @@ bool Plane::verify_command_callback(const AP_Mission::Mission_Command& cmd)
 void Plane::exit_mission_callback()
 {
     if (control_mode == &mode_auto) {
-        set_mode(mode_rtl, ModeReason::MISSION_END);
-        gcs().send_text(MAV_SEVERITY_INFO, "Mission complete, changing mode to RTL");
+        if (plane.mission.get_current_nav_cmd().id == MAV_CMD_NAV_LAND) {
+            set_mode(mode_rtl, ModeReason::MISSION_END);
+            gcs().send_text(MAV_SEVERITY_INFO, "Mission complete, changing mode to RTL");
+        }
+        else {
+            set_mode(mode_guided, ModeReason::MISSION_END);
+            gcs().send_text(MAV_SEVERITY_INFO, "Mission Diving");
+        }
     }
 }
 

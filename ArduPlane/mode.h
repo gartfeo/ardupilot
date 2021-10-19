@@ -197,6 +197,11 @@ public:
     bool does_auto_throttle() const override { return true; }
 
 protected:
+    bool stopRoll;
+    bool stopPitch;
+
+    int32_t currentBearing;
+    float minAlt;
 
     bool _enter() override;
 };

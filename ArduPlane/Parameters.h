@@ -351,7 +351,21 @@ public:
         k_param_gcs5,          // stream rates
         k_param_gcs6,          // stream rates
         k_param_fence,         // vehicle fence
+
+        k_param_hm_target_angle = 286,
+        k_param_hm_alt_diff,
+        k_param_hm_deg_eps,
+        k_param_hm_min_alt,
+        k_param_hm_attack_angle,
+        k_param_hm_attack_thr
     };
+
+    AP_Int32 hm_target_angle;
+    AP_Int32 hm_alt_diff;
+    AP_Int32 hm_deg_eps;
+    AP_Int32 hm_min_alt;
+    AP_Int32 hm_attack_angle;
+    AP_Int32 hm_attack_thr;
 
     AP_Int16 format_version;
 
