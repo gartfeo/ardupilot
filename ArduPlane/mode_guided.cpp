@@ -22,10 +22,10 @@ bool ModeGuided::_enter()
     const int32_t targetAngle = plane.g.hm_target_angle;
     const int32_t relative_altitude_cm = plane.adjusted_relative_altitude_cm() * 0.01;
 
-    currentBearing = wrap_360_cd(plane.ahrs.yaw_sensor) + targetAngle * 100;
+    currentBearing = wrap_180_cd(plane.ahrs.yaw_sensor) + targetAngle * 100;
     minAlt = constrain_float(relative_altitude_cm - plane.g.hm_alt_diff, plane.g.hm_min_alt, relative_altitude_cm);
 
-    hal.console->printf("Hd: %ld ; Tgt_Hd %ld\n", (long int)wrap_360_cd(plane.ahrs.yaw_sensor), (long int)currentBearing);
+    hal.console->printf("Hd: %ld ; Tgt_Hd %ld\n", (long int)wrap_180_cd(plane.ahrs.yaw_sensor), (long int)currentBearing);
     hal.console->printf("min altitude: %f \n", minAlt);
 
     stopRoll = false;
@@ -41,7 +41,7 @@ void ModeGuided::update()
     } else {
     uint32_t now = AP_HAL::millis();
 
-    int32_t diff = currentBearing - wrap_360_cd(plane.ahrs.yaw_sensor);
+    int32_t diff = currentBearing - wrap_180_cd(plane.ahrs.yaw_sensor);
     bool shouldRoll = abs(diff) > plane.g.hm_deg_eps;
     bool shouldPitch = plane.adjusted_relative_altitude_cm() * 0.01 > minAlt;
 
