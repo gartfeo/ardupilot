@@ -15,8 +15,12 @@
 // Hit Target mode params
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
+#ifndef HM_ENABLE_DEFAULT
+# define HM_ENABLE_DEFAULT      0    // default value for target angle in hit mode
+#endif
+
 #ifndef HM_TARGET_ANGLE_DEFAULT
-# define HM_TARGET_ANGLE_DEFAULT      -45    // default value for target angle in hit mode
+# define HM_TARGET_ANGLE_DEFAULT      -45    // default value for enable hit mode
 #endif
 
 #ifndef HM_ALT_DIFF_DEFAULT

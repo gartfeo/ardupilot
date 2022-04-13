@@ -12,6 +12,12 @@
 #define GOBJECTN(v, pname, name, class) { AP_PARAM_GROUP, name, Parameters::k_param_ ## pname, (const void *)&plane.v, {group_info : class::var_info} }
 
 const AP_Param::Info Plane::var_info[] = {
+    // @Param: HM_ENABLE
+    // @DisplayName: Hit Mode Enable
+    // @Description: Hit Target Mode Enable
+    // @User: Advanced
+    GSCALAR(hm_enable,         "HM_ENABLE", HM_ENABLE_DEFAULT),
+
     // @Param: HM_TARGET_ANGLE
     // @DisplayName: Hit Mode Target Angle
     // @Description: Target angle to use in Hit Target Mode

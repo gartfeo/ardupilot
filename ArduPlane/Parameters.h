@@ -357,9 +357,11 @@ public:
         k_param_hm_deg_eps,
         k_param_hm_min_alt,
         k_param_hm_attack_angle,
-        k_param_hm_attack_thr
+        k_param_hm_attack_thr,
+        k_param_hm_enable,
     };
 
+    AP_Int32 hm_enable;
     AP_Int32 hm_target_angle;
     AP_Int32 hm_alt_diff;
     AP_Int32 hm_deg_eps;
