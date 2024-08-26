@@ -356,6 +356,17 @@ public:
         k_param_fence,         // vehicle fence - unused
         k_param_acro_yaw_rate,
         k_param_takeoff_throttle_max_t,
+
+        k_param_guided_nav_pitch_min_angle = 678,
+        k_param_guided_nav_thr,
+        k_param_guided_nav_use_terrain,
+        k_param_guided_nav_sim_use_direct_target,
+        k_param_guided_nav_min_alt,
+        k_param_guided_nav_sim_confirm_wait,
+        k_param_guided_status_update_interval,
+        k_param_guided_target_min_wp,
+        k_param_guided_target_sim_alt,
+
     };
 
     AP_Int16 format_version;
@@ -570,6 +581,18 @@ public:
 
     // just to make compilation easier when all things are compiled out...
     uint8_t unused_integer;
+    
+
+    // parameters for fixed wing guided navigation
+    AP_Int16 guided_nav_pitch_min_angle;
+    AP_Int8 guided_nav_thr;
+    AP_Int8 guided_nav_use_terrain;
+    AP_Int8 guided_nav_sim_use_direct_target;
+    AP_Int16 guided_nav_min_alt;
+    AP_Int16 guided_nav_sim_confirm_wait;
+    AP_Int16 guided_status_update_interval;
+    AP_Int8 guided_target_min_wp;
+    AP_Int16 guided_target_sim_alt;
 };
 
 extern const AP_Param::Info var_info[];

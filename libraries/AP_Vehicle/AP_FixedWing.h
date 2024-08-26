@@ -25,17 +25,6 @@ struct AP_FixedWing {
     AP_Int16 pitch_trim_cd;
     AP_Float takeoff_throttle_max_t;
 
-    // parameters for fixed wing guided navigation
-    AP_Int16 guided_nav_pitch_min_angle;
-    AP_Int8 guided_nav_thr;
-    bool guided_nav_use_terrain;
-    bool guided_nav_sim_use_direct_target;
-    AP_Int16 guided_nav_min_alt;
-    AP_Int8 guided_nav_sim_confirm_wait;
-    AP_Int8 guided_status_update_interval;
-    AP_Int8 guided_target_min_wp;
-    AP_Int16 guided_target_sim_alt;
-
     struct Rangefinder_State {
         bool in_range:1;
         bool have_initial_reading:1;
