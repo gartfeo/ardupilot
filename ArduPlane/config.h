@@ -199,11 +199,17 @@
 #ifndef GUIDED_STATUS_UPDATE_INTERVAL
  # define GUIDED_STATUS_UPDATE_INTERVAL 1
 #endif
-#ifndef GUIDED_TARGET_MIN_WP
- # define GUIDED_TARGET_MIN_WP 3
+#ifndef GUIDED_NAV_MIN_WP
+ # define GUIDED_NAV_MIN_WP 3
+#endif
+#ifndef GUIDED_TARGET_SIM_COUNT
+ # define GUIDED_TARGET_SIM_COUNT 1
 #endif
 #ifndef GUIDED_TARGET_SIM_ALT
  # define GUIDED_TARGET_SIM_ALT 150
+#endif
+#ifndef GUIDED_TARGET_SIM_WP
+ # define GUIDED_TARGET_SIM_WP 4
 #endif
 
 //////////////////////////////////////////////////////////////////////////////

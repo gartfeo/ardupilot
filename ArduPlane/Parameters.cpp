@@ -795,13 +795,21 @@ const AP_Param::Info Plane::var_info[] = {
     GSCALAR(guided_status_update_interval, "GS_STAT_INTV",  GUIDED_STATUS_UPDATE_INTERVAL),
 
 
-    // @Param: GT_MIN_WP
+    // @Param: GN_MIN_WP
     // @DisplayName: Minimum number of waypoints for guided simulated navigation
     // @Description: Minimum number of waypoints for guided simulated navigation. This is the minimum number of waypoints that the plane will use to reach target point.
     // @Range: 1 50
     // @Increment: 1
     // @User: Advanced
-    GSCALAR(guided_target_min_wp,         "GT_MIN_WP",  GUIDED_TARGET_MIN_WP),
+    GSCALAR(guided_nav_min_wp,         "GN_MIN_WP",  GUIDED_NAV_MIN_WP),
+
+    // @Param: GT_COUNT
+    // @DisplayName: Guided simulated navigation target count
+    // @Description: Target count for guided simulated navigation. This is the target count that the plane will use to reach target point.
+    // @Range: 1 50
+    // @Increment: 1
+    // @User: Advanced
+    GSCALAR(guided_target_sim_count,      "GT_COUNT",  GUIDED_TARGET_SIM_COUNT),
 
     // @Param: GT_ALT
     // @DisplayName: Guided simulated navigation target altitude
@@ -811,6 +819,14 @@ const AP_Param::Info Plane::var_info[] = {
     // @Increment: 10
     // @User: Advanced
     GSCALAR(guided_target_sim_alt,       "GT_ALT",  GUIDED_TARGET_SIM_ALT),
+
+    // @Param: GT_WP
+    // @DisplayName: Guided simulated navigation target waypoint
+    // @Description: Target waypoint for guided simulated navigation. This is the target waypoint that the plane will use to reach target point.
+    // @Range: 1 50
+    // @Increment: 1
+    // @User: Advanced
+    GSCALAR(guided_target_sim_wp,        "GT_WP",  GUIDED_TARGET_SIM_WP),
 
 
     // @Group: BARO

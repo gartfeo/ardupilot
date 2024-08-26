@@ -364,8 +364,10 @@ public:
         k_param_guided_nav_min_alt,
         k_param_guided_nav_sim_confirm_wait,
         k_param_guided_status_update_interval,
-        k_param_guided_target_min_wp,
+        k_param_guided_nav_min_wp,
         k_param_guided_target_sim_alt,
+        k_param_guided_target_sim_wp,
+        k_param_guided_target_sim_count,
 
     };
 
@@ -487,8 +489,10 @@ public:
     AP_Int16 guided_nav_min_alt;
     AP_Int16 guided_nav_sim_confirm_wait;
     AP_Int16 guided_status_update_interval;
-    AP_Int8 guided_target_min_wp;
+    AP_Int8 guided_nav_min_wp;
     AP_Int16 guided_target_sim_alt;
+    AP_Int16 guided_target_sim_wp;
+    AP_Int16 guided_target_sim_count;
 };
 
 /*
