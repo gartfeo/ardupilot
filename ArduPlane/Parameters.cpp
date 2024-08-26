@@ -735,82 +735,82 @@ const AP_Param::Info Plane::var_info[] = {
     // @User: Advanced
     ASCALAR(crash_detection_enable,         "CRASH_DETECT",   0),
 
-    // @Param: GUIDED_NAV_PITCH_MIN_ANGLE
+    // @Param: GT_PITCH_MIN
     // @DisplayName: Minimum pitch angle in guided navigation
     // @Description: Minimum pitch angle in guided navigation mode. This is the minimum pitch angle that the plane will use to nose down to reach target point.
     // @Units: cdeg
     // @Range: -9000 0
     // @Increment: 100
     // @User: Advanced
-    GSCALAR(guided_nav_pitch_min_angle,     "GUIDED_NAV_PITCH_MIN_ANGLE",  GUIDED_NAV_PITCH_MIN_ANGLE),
+    GSCALAR(guided_nav_pitch_min_angle,     "GN_PITCH_MIN",  GUIDED_NAV_PITCH_MIN_ANGLE),
 
-    // @Param: GUIDED_NAV_THR
+    // @Param: GN_THR
     // @DisplayName: Guided navigation throttle
     // @Description: Throttle percentage to use in guided navigation mode. This is the throttle percentage that the plane will use to reach target point.
     // @Units: %
     // @Range: 0 100
     // @Increment: 1
     // @User: Advanced
-    GSCALAR(guided_nav_thr,                "GUIDED_NAV_THR",  GUIDED_NAV_THR),
+    GSCALAR(guided_nav_thr,                "GN_THR",  GUIDED_NAV_THR),
 
-    // @Param: GUIDED_NAV_MIN_ALT
+    // @Param: GN_MIN_ALT
     // @DisplayName: Minimum altitude for guided navigation
     // @Description: Minimum altitude in meters for guided navigation. This is the minimum altitude that the plane will use to reach target point.
     // @Units: m
     // @Range: 0 500
     // @Increment: 10
     // @User: Advanced
-    GSCALAR(guided_nav_min_alt,           "GUIDED_NAV_MIN_ALT",  GUIDED_NAV_MIN_ALT),
+    GSCALAR(guided_nav_min_alt,           "GN_MIN_ALT",  GUIDED_NAV_MIN_ALT),
 
-    // @Param: GUIDED_NAV_USE_TERRAIN
+    // @Param: GN_USE_TRN
     // @DisplayName: Use terrain for guided navigation
     // @Description: Use terrain for guided navigation. If set to 1, the plane will use terrain data to reach target point.
     // @Values: 0:Disabled,1:Enabled
     // @User: Advanced
-    GSCALAR(guided_nav_use_terrain,      "GUIDED_NAV_USE_TERRAIN",  GUIDED_NAV_USE_TERRAIN),
+    GSCALAR(guided_nav_use_terrain,      "GN_USE_TRN",  GUIDED_NAV_USE_TERRAIN),
 
-    // @Param: GUIDED_NAV_SIM_USE_DIRECT_TARGET
+    // @Param: GN_DIR_TRG
     // @DisplayName: Use direct target for guided simulated navigation
     // @Description: Use direct target for guided simulated navigation. If set to 1, the plane will use direct target to reach target point.
     // @Values: 0:Disabled,1:Enabled
     // @User: Advanced
-    GSCALAR(guided_nav_sim_use_direct_target, "GUIDED_NAV_SIM_USE_DIRECT_TARGET",  GUIDED_NAV_SIM_USE_DIRECT_TARGET),
+    GSCALAR(guided_nav_sim_use_direct_target, "GN_DIR_TRG",  GUIDED_NAV_SIM_USE_DIRECT_TARGET),
 
-    // @Param: GUIDED_NAV_SIM_CONFIRM_WAIT
+    // @Param: GN_CNFRM_WT
     // @DisplayName: Guided navigation simulation confirmation wait
     // @Description: Time in seconds to wait for confirmation of guided simulated navigation.
     // @Units: s
     // @Range: 0 120
     // @Increment: 1
     // @User: Advanced
-    GSCALAR(guided_nav_sim_confirm_wait,   "GUIDED_NAV_SIM_CONFIRM_WAIT",  GUIDED_NAV_SIM_CONFIRM_WAIT),
+    GSCALAR(guided_nav_sim_confirm_wait,   "GN_CNFRM_WT",  GUIDED_NAV_SIM_CONFIRM_WAIT),
 
-    // @Param: GUIDED_STATUS_UPDATE_INTERVAL
+    // @Param: GS_STAT_INTV
     // @DisplayName: Guided status update interval
     // @Description: Time in seconds between updates of the guided status.
     // @Units: s
     // @Range: 0 30
     // @Increment: 1
     // @User: Advanced
-    GSCALAR(guided_status_update_interval, "GUIDED_STATUS_UPDATE_INTERVAL",  GUIDED_STATUS_UPDATE_INTERVAL),
+    GSCALAR(guided_status_update_interval, "GS_STAT_INTV",  GUIDED_STATUS_UPDATE_INTERVAL),
 
 
-    // @Param: GUIDED_TARGET_SIM_MIN_WP
+    // @Param: GT_MIN_WP
     // @DisplayName: Minimum number of waypoints for guided simulated navigation
     // @Description: Minimum number of waypoints for guided simulated navigation. This is the minimum number of waypoints that the plane will use to reach target point.
     // @Range: 1 50
     // @Increment: 1
     // @User: Advanced
-    GSCALAR(guided_target_min_wp,         "GUIDED_TARGET_MIN_WP",  GUIDED_TARGET_MIN_WP),
+    GSCALAR(guided_target_min_wp,         "GT_MIN_WP",  GUIDED_TARGET_MIN_WP),
 
-    // @Param: GUIDED_TARGET_SIM_ALT
+    // @Param: GT_ALT
     // @DisplayName: Guided simulated navigation target altitude
     // @Description: Target altitude in meters for guided simulated navigation. This is the target altitude that the plane will use to reach target point.
     // @Units: m
     // @Range: 0 500
     // @Increment: 10
     // @User: Advanced
-    GSCALAR(guided_target_sim_alt,       "GUIDED_TARGET_SIM_ALT",  GUIDED_TARGET_SIM_ALT),
+    GSCALAR(guided_target_sim_alt,       "GT_ALT",  GUIDED_TARGET_SIM_ALT),
 
 
     // @Group: BARO
