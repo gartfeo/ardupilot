@@ -478,6 +478,17 @@ public:
     AP_Int8 override_channel;
 #endif
     AP_Int16 gcs_pid_mask;
+    
+    // parameters for fixed wing guided navigation
+    AP_Int16 guided_nav_pitch_min_angle;
+    AP_Int8 guided_nav_thr;
+    AP_Int8 guided_nav_use_terrain;
+    AP_Int8 guided_nav_sim_use_direct_target;
+    AP_Int16 guided_nav_min_alt;
+    AP_Int16 guided_nav_sim_confirm_wait;
+    AP_Int16 guided_status_update_interval;
+    AP_Int8 guided_target_min_wp;
+    AP_Int16 guided_target_sim_alt;
 };
 
 /*
@@ -581,18 +592,6 @@ public:
 
     // just to make compilation easier when all things are compiled out...
     uint8_t unused_integer;
-    
-
-    // parameters for fixed wing guided navigation
-    AP_Int16 guided_nav_pitch_min_angle;
-    AP_Int8 guided_nav_thr;
-    AP_Int8 guided_nav_use_terrain;
-    AP_Int8 guided_nav_sim_use_direct_target;
-    AP_Int16 guided_nav_min_alt;
-    AP_Int16 guided_nav_sim_confirm_wait;
-    AP_Int16 guided_status_update_interval;
-    AP_Int8 guided_target_min_wp;
-    AP_Int16 guided_target_sim_alt;
 };
 
 extern const AP_Param::Info var_info[];
