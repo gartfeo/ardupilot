@@ -175,6 +175,36 @@
  # define RUDDER_MIX           0.5f
 #endif
 
+//////////////////////////////////////////////////////////////////////////////
+// GUIDED NAVIGATION
+//
+#ifndef GUIDED_NAV_PITCH_MIN_ANGLE
+ # define GUIDED_NAV_PITCH_MIN_ANGLE -4500
+#endif
+#ifndef GUIDED_NAV_THR
+ # define GUIDED_NAV_THR 0
+#endif
+#ifndef GUIDED_NAV_USE_TERRAIN
+ # define GUIDED_NAV_USE_TERRAIN 1
+#endif
+#ifndef GUIDED_NAV_SIM_USE_DIRECT_TARGET
+ # define GUIDED_NAV_SIM_USE_DIRECT_TARGET 0
+#endif
+#ifndef GUIDED_NAV_MIN_ALT
+ # define GUIDED_NAV_MIN_ALT 145
+#endif
+#ifndef GUIDED_NAV_SIM_CONFIRM_WAIT
+ # define GUIDED_NAV_SIM_CONFIRM_WAIT 0
+#endif
+#ifndef GUIDED_STATUS_UPDATE_INTERVAL
+ # define GUIDED_STATUS_UPDATE_INTERVAL 1
+#endif
+#ifndef GUIDED_TARGET_MIN_WP
+ # define GUIDED_TARGET_MIN_WP 3
+#endif
+#ifndef GUIDED_TARGET_SIM_ALT
+ # define GUIDED_TARGET_SIM_ALT 150
+#endif
 
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
