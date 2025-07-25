@@ -6,7 +6,7 @@ mkdir -p ~/ardupilot/{1,2}
   /home/gart/ardupilot/build/sitl/bin/arduplane \
       -S --model plane --speedup 5 \
       --serial0=udpclient:0.0.0.0:5000 \
-      --serial1=udpclient:127.0.1:20000 \
+      --serial1=udpclient:172.21.176.1:16550 \
       --sim-address=127.0.0.1 -I0 \
       --home 40.3117414,44.455211099999985,1294.86,0 \
       --sysid 1
@@ -16,7 +16,7 @@ mkdir -p ~/ardupilot/{1,2}
   /home/gart/ardupilot/build/sitl/bin/arduplane \
       -S --model plane --speedup 5 \
       --serial0=udpclient:0.0.0.0:6000 \
-      --serial1=udpclient:0.0.0.0:22000 \
+      --serial1=udpclient:172.21.176.1:16560 \
       --sim-address=127.0.0.1 -I1 \
       --home 40.3117414,44.455211099999985,1294.86,0 \
       --sysid 2
