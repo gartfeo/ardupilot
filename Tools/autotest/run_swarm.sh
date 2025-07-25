@@ -3,7 +3,7 @@ set -e                          # stop on first error
 trap "pkill -f mavlink-routerd; pkill -f arduplane" EXIT
 
 # clean old sockets
-for p in 5000 6000 14500 14550 14560 14570; do
+for p in 5762 5763 5772 5773 5000 6000 14500 14550 14560 14570; do
     fuser -k ${p}/udp 2>/dev/null || true
 done
 
