@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e                          # stop on first error
 trap "pkill -f mavlink-routerd; pkill -f arduplane" EXIT
+sleep 2              # <— add this before you start the new swarm
 
 # clean old sockets
 for p in 5762 5763 5772 5773 5000 6000 14500 14550 14560 14570; do
@@ -28,7 +29,17 @@ mkdir -p ~/ardupilot/{1,2}
       --sysid 2
 ) &
 (
-  mavlink-routerd -t 0 -v -e 172.21.176.1:14550 -e 172.21.176.1:14500 -e 172.21.176.1:14560 -e 172.21.176.1:14570 127.0.0.1:5000 127.0.0.1:6000
+  cd ~/mavlink-router
+  mavlink-routerd \
+      -t 0 \
+      -l /tmp/flightstack-logs \
+      -v \
+      -e 172.21.176.1:14550 \
+      -e 172.21.176.1:14500 \
+      -e 172.21.176.1:14560 \
+      -e 172.21.176.1:14570 \
+      127.0.0.1:5000 \
+      127.0.0.1:6000 
 ) &
 
 wait            # keep script alive until everything exits
