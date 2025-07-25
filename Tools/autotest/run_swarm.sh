@@ -1,7 +1,4 @@
 #!/bin/bash
-set -e                          # stop on first error
-trap "pkill -f mavlink-routerd; pkill -f arduplane" EXIT
-
 mkdir -p ~/ardupilot/{1,2}
 
 (
@@ -23,17 +20,7 @@ mkdir -p ~/ardupilot/{1,2}
       --sysid 2
 ) &
 (
-  cd ~/mavlink-router
-  mavlink-routerd \
-      -t 0 \
-      -l /tmp/flightstack-logs \
-      -v \
-      -e 172.21.176.1:14550 \
-      -e 172.21.176.1:14500 \
-      -e 172.21.176.1:14560 \
-      -e 172.21.176.1:14570 \
-      127.0.0.1:5000 \
-      127.0.0.1:6000 
+  mavlink-routerd -c swarm-mavlink-router.conf -v
 ) &
 
 wait            # keep script alive until everything exits
