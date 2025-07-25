@@ -29,7 +29,7 @@ mkdir -p ~/ardupilot/{1,2}
 ) &
 (
   cd ~/mavlink-router
-  mavlink-routerd -t 0 -l /tmp/flightstack-logs -v -e 172.21.176.1:14550 -e 172.21.176.1:14500 -e 172.21.176.1:14560 -e 172.21.176.1:14570 127.0.0.1:5000 127.0.0.1:6000
+  mavlink-routerd -t 0 -v -e 172.21.176.1:14550 -e 172.21.176.1:14500 -e 172.21.176.1:14560 -e 172.21.176.1:14570 127.0.0.1:5000 127.0.0.1:6000
 ) &
 
 wait            # keep script alive until everything exits
