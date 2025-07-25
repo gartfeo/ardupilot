@@ -20,7 +20,7 @@ mkdir -p ~/ardupilot/{1,2}
       --sysid 2
 ) &
 (
-  mavlink-routerd -c swarm-mavlink-router.conf -v
+  mavlink-routerd -c /home/gart/ardupilot/Tools/autotest/swarm-mavlink-router.conf -v
 ) &
 
 wait            # keep script alive until everything exits
