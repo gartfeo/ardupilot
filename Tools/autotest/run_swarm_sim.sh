@@ -25,6 +25,9 @@ mkdir -p ~/ardupilot/{1,2}
   mavlink-routerd -v \
       --tcp-port 0 \
       --endpoint 172.21.176.1:14550 \
+      --endpoint 172.21.176.1:14500 \
+      --endpoint 172.21.176.1:14560 \
+      --endpoint 172.21.176.1:14570 \
       127.0.0.1:5000 \
       127.0.0.1:6000
 ) &
