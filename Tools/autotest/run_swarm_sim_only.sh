@@ -25,5 +25,12 @@ mkdir -p ~/ardupilot/{1,2}
       --home 40.3117414,44.455211099999985,1294.86,0 \
       --sysid 2
 ) &
+(
+  mavlink-routerd -v \
+      --tcp-port 0 \
+      --endpoint 0.0.0.0:15000 \
+      127.0.0.1:5000 \
+      127.0.0.1:6000
+) &
 
 wait
