@@ -80,7 +80,7 @@ fi
 # -----------------------------
 ARDUPILOT_DIR="${ARDUPILOT_DIR:-$HOME/ardupilot}"
 BIN="${BIN:-$ARDUPILOT_DIR/build/sitl/bin/arduplane}"
-DEFAULTS="${DEFAULTS:-$ARDUPILOT_DIR/Tools/autotest/models/plane-swarm.parm}"
+DEFAULTS="${DEFAULTS:-$ARDUPILOT_DIR/Tools/autotest/models/plane.parm}"
 HOME_COORDS="${HOME_COORDS:-40.3117414,44.455211099999985,1294.86,0.0}"
 MODEL="${MODEL:-plane}"
 SPEEDUP="${SPEEDUP:-5}"
