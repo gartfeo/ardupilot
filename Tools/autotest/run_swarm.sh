@@ -87,6 +87,7 @@ SPEEDUP="${SPEEDUP:-5}"
 RUN_ROUTER="${RUN_ROUTER:-1}"
 ROUTER_BIN="${ROUTER_BIN:-mavlink-routerd}"
 ROUTER_WIN_PORTS="${ROUTER_WIN_PORTS:-14550,14500,14560,14570}"
+ROUTER_SYSID="${ROUTER_SYSID:-255}"
 
 # rfd900 specifics
 RFD_USB_LIST="${RFD_USB_LIST:-/dev/ttyUSB0,/dev/ttyUSB1}"
@@ -184,7 +185,7 @@ serial2_for() {
 }
 
 build_router_args() {
-  local args=( -v --tcp-port 0 )
+  local args=( -v -s "$ROUTER_SYSID" --tcp-port 0 )   # <— -s 255 by default
   case "$PROFILE" in
     sim)
       for p in "${WIN_OUT_PORTS[@]}"; do args+=( --endpoint "$WIN_IP:$p" ); done
@@ -206,6 +207,7 @@ build_router_args() {
   esac
   printf '%s\0' "${args[@]}"
 }
+
 
 # -----------------------------
 # Launch SITL instances

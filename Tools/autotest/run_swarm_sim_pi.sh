@@ -35,7 +35,7 @@ echo "Detected environment: $ENVIRONMENT"
       --sysid 2
 ) &
 (
-  mavlink-routerd -v \
+  mavlink-routerd -v -s 255 \
       --tcp-port 0 \
       --endpoint "$WIN_IP":14550 \
       --endpoint "$WIN_IP":14500 \

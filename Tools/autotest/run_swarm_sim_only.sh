@@ -52,7 +52,7 @@ echo "Using Windows IP: ${WIN_IP:-unknown}"
       --sysid 2
 ) &
 (
-  mavlink-routerd -v \
+  mavlink-routerd -v -s 255 \
       --tcp-port 0 \
       --endpoint 0.0.0.0:15000 \
       127.0.0.1:5000 \
