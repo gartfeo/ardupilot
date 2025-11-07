@@ -8,50 +8,32 @@ HOME_COORDS="40.3117414,44.455211099999985,1294.86,0.0"
 
 mkdir -p "$ARDUPILOT_DIR"/{1,2}
 
-# --- Detect if running under WSL and compute Windows host IP ---
-if grep -qiE "(microsoft|wsl)" /proc/sys/kernel/osrelease 2>/dev/null || \
-   grep -qi microsoft /proc/version 2>/dev/null; then
-    ENVIRONMENT="WSL"
-    # Prefer default gateway (correct Windows host IP in WSL2)
-    WIN_IP="${WSL_HOST_IP:-$(ip -4 route show default 2>/dev/null | awk '{print $3; exit}')}"
-    # Fallback to resolv.conf if needed
-    if [[ -z "${WIN_IP:-}" ]]; then
-        WIN_IP="$(awk '/^nameserver /{print $2; exit}' /etc/resolv.conf 2>/dev/null || true)"
-    fi
-else
-    ENVIRONMENT="Linux"
-    WIN_IP="127.0.0.1"
-fi
-
 echo "Detected environment: $ENVIRONMENT"
-echo "Using Windows IP: ${WIN_IP:-unknown}"
 
 (
   cd "$ARDUPILOT_DIR/1"
   "$BIN" \
       -S --model plane --speedup 5 --slave 0 \
       --defaults "$DEFAULTS" \
-      --serial0=tcp:127.0.0.1:5760:nowait \
-      --serial1=tcp:"$WIN_IP":5762 \
-      --serial2=udpclient:0.0.0.0:5000 \
+      --serial0=tcp:0.0.0.0:5760:nowait \
+      --serial1=udpclient:0.0.0.0:5000 \
+      --serial2=udpclient:192.168.105.60:15000 \
       --sim-address=127.0.0.1 -I0 \
       --home "$HOME_COORDS" \
       --sysid 1
 ) &
-
 (
   cd "$ARDUPILOT_DIR/2"
   "$BIN" \
       -S --model plane --speedup 5 --slave 0 \
       --defaults "$DEFAULTS" \
-      --serial0=tcp:127.0.0.1:5760:nowait \
-      --serial1=tcp:"$WIN_IP":5772 \
-      --serial2=udpclient:0.0.0.0:6000 \
+      --serial0=tcp:0.0.0.0:5770:nowait \
+      --serial1=udpclient:0.0.0.0:6000 \
+      --serial2=udpclient:192.168.105.205:16000 \
       --sim-address=127.0.0.1 -I1 \
       --home "$HOME_COORDS" \
       --sysid 2
 ) &
-
 (
   mavlink-routerd -v \
       --tcp-port 0 \
@@ -59,6 +41,8 @@ echo "Using Windows IP: ${WIN_IP:-unknown}"
       --endpoint "$WIN_IP":14500 \
       --endpoint "$WIN_IP":14560 \
       --endpoint "$WIN_IP":14570 \
+      --endpoint 192.168.105.60:15010 \
+      --endpoint 192.168.105.205:16010 \
       127.0.0.1:5000 \
       127.0.0.1:6000
 ) &
