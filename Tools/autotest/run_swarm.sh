@@ -10,7 +10,7 @@ USAGE:
   ./run_swarm.sh -h|--help
 
 PROFILES:
-  sim       : serial2 -> local UDP (5000, 6000, …). Router -> Windows $WIN_IP on 14550,14500,14560,14570.
+  sim       : serial2 -> local UDP (5000, 6000, …). Router -> Windows $WIN_IP.
   sim_only  : like 'sim', but router exports 0.0.0.0:15000 (no Windows endpoints).
   rfd900    : serial2 -> UART (/dev/ttyUSB* per instance). Router reads from RFD device.
   pi        : serial2 -> udpclient:<PI_TARGETS_CSV>. Router also mirrors extra PI endpoints.
@@ -19,18 +19,24 @@ FLAGS:
   -n, --instances N    number of SITL instances (default 2)
   -h, --help           show this help
 
+DEFAULT WINDOWS ENDPOINT PORTS (SIM/RFD900/PI):
+  Generated from N using: 14550 + 10*k for k = 0..N  (i.e., N+1 ports)
+  Examples: N=1 → 14550,14560;  N=3 → 14550,14560,14570,14580
+  Override with: ROUTER_WIN_PORTS="14550,14555,..." (comma-separated)
+
 ENV OVERRIDES (common):
-  INSTANCES (default 2)             MODEL (plane)              SPEEDUP (5)
-  ARDUPILOT_DIR ($HOME/ardupilot)   BIN (…/build/sitl/bin/arduplane)
+  INSTANCES (2)     MODEL (plane)     SPEEDUP (5)
+  ARDUPILOT_DIR ($HOME/ardupilot)
+  BIN (…/build/sitl/bin/arduplane)
   DEFAULTS (…/Tools/autotest/models/plane.parm)
   HOME_COORDS ("40.3117414,44.455211099999985,1294.86,0.0")
-  RUN_ROUTER (1|0)                  ROUTER_BIN (mavlink-routerd)
-  WIN_IP (force Windows IP)         WSL_HOST_IP (alt WSL)
+  RUN_ROUTER (1|0)  ROUTER_BIN (mavlink-routerd)
+  ROUTER_SYSID (255)
+  WIN_IP (force Windows IP)  WSL_HOST_IP (alt WSL gw)
 
 PROFILE ENVS:
-  sim/sim_only: ROUTER_WIN_PORTS="14550,14500,14560,14570"
-  rfd900:       RFD_USB_LIST="/dev/ttyUSB0,/dev/ttyUSB1"  RFD_USB_ROUTER="/dev/ttyUSB2"  RFD_BAUD=115200
-  pi:           PI_TARGETS_CSV="ip1:port1,ip2:port2,..."  PI_ROUTER_EXTRA_CSV="ipX:portX,ipY:portY,..."
+  rfd900:  RFD_USB_LIST="/dev/ttyUSB0,/dev/ttyUSB1"  RFD_USB_ROUTER="/dev/ttyUSB2"  RFD_BAUD=115200
+  pi:      PI_TARGETS_CSV="ip1:port1,ip2:port2,..."  PI_ROUTER_EXTRA_CSV="ipX:portX,ipY:portY,..."
 
 PORT RULES (per instance i=1..N):
   serial0 (sim/sim_only): tcp:127.0.0.1:(5760 + 10*(i-1)):nowait
@@ -51,9 +57,7 @@ EXAMPLES:
 EOF
 }
 
-# -----------------------------
-# Parse args
-# -----------------------------
+# -------- Parse args --------
 PROFILE="sim"
 INSTANCES="${INSTANCES:-2}"
 
@@ -75,9 +79,7 @@ if ! [[ "$INSTANCES" =~ ^[0-9]+$ ]] || [[ "$INSTANCES" -lt 1 ]]; then
   echo "INSTANCES must be a positive integer (got: $INSTANCES)"; exit 1
 fi
 
-# -----------------------------
-# Config & defaults
-# -----------------------------
+# -------- Config & defaults --------
 ARDUPILOT_DIR="${ARDUPILOT_DIR:-$HOME/ardupilot}"
 BIN="${BIN:-$ARDUPILOT_DIR/build/sitl/bin/arduplane}"
 DEFAULTS="${DEFAULTS:-$ARDUPILOT_DIR/Tools/autotest/models/plane.parm}"
@@ -86,8 +88,17 @@ MODEL="${MODEL:-plane}"
 SPEEDUP="${SPEEDUP:-5}"
 RUN_ROUTER="${RUN_ROUTER:-1}"
 ROUTER_BIN="${ROUTER_BIN:-mavlink-routerd}"
-ROUTER_WIN_PORTS="${ROUTER_WIN_PORTS:-14550,14500,14560,14570}"
 ROUTER_SYSID="${ROUTER_SYSID:-255}"
+
+# Generate default Windows ports from N if not overridden:
+generate_win_ports() {
+  local n="$1" base=14550 step=10
+  local -a out=()
+  # N+1 ports: k=0..N
+  for ((k=0; k<=n; k++)); do out+=("$((base + step*k))"); done
+  (IFS=','; echo "${out[*]}")
+}
+ROUTER_WIN_PORTS="${ROUTER_WIN_PORTS:-$(generate_win_ports "$INSTANCES")}"
 
 # rfd900 specifics
 RFD_USB_LIST="${RFD_USB_LIST:-/dev/ttyUSB0,/dev/ttyUSB1}"
@@ -98,9 +109,7 @@ RFD_BAUD="${RFD_BAUD:-115200}"
 PI_TARGETS_CSV="${PI_TARGETS_CSV:-192.168.105.60:15000,192.168.105.205:16000}"
 PI_ROUTER_EXTRA_CSV="${PI_ROUTER_EXTRA_CSV:-192.168.105.60:15010,192.168.105.205:16010}"
 
-# -----------------------------
-# Detect WSL & Windows host IP
-# -----------------------------
+# -------- Detect WSL & Windows host IP --------
 detect_windows_ip() {
   local env="Linux" ip="127.0.0.1"
   if grep -qiE "(microsoft|wsl)" /proc/sys/kernel/osrelease 2>/dev/null || \
@@ -121,10 +130,9 @@ echo "Profile: $PROFILE"
 echo "Instances: $INSTANCES"
 echo "Detected environment: $ENVIRONMENT"
 echo "Using Windows IP: $WIN_IP"
+echo "Router Windows ports: $ROUTER_WIN_PORTS"
 
-# -----------------------------
-# Prep
-# -----------------------------
+# -------- Prep --------
 IFS=',' read -r -a WIN_OUT_PORTS <<< "$ROUTER_WIN_PORTS"
 IFS=',' read -r -a RFD_USB_DEVS <<< "$RFD_USB_LIST"
 IFS=',' read -r -a PI_TARGETS <<< "$PI_TARGETS_CSV"
@@ -133,24 +141,19 @@ IFS=',' read -r -a PI_ROUTER_EXTRA <<< "$PI_ROUTER_EXTRA_CSV"
 mkdir -p "$ARDUPILOT_DIR"
 for i in $(seq 1 "$INSTANCES"); do mkdir -p "$ARDUPILOT_DIR/$i"; done
 
-# Sanity checks
 [[ -x "$BIN" ]] || { echo "Binary not found/executable: $BIN"; exit 1; }
 [[ -f "$DEFAULTS" ]] || { echo "Defaults not found: $DEFAULTS"; exit 1; }
 if [[ "$RUN_ROUTER" == "1" ]] && ! command -v "$ROUTER_BIN" >/dev/null 2>&1; then
   echo "Router not found in PATH: $ROUTER_BIN (set RUN_ROUTER=0 to skip)"; exit 1
 fi
-if [[ "$PROFILE" == "rfd900" ]]; then
-  if [[ "${#RFD_USB_DEVS[@]}" -lt "$INSTANCES" ]]; then
-    echo "rfd900: need at least $INSTANCES serial devices in RFD_USB_LIST (got ${#RFD_USB_DEVS[@]})."; exit 1
-  fi
+if [[ "$PROFILE" == "rfd900" ]] && [[ "${#RFD_USB_DEVS[@]}" -lt "$INSTANCES" ]]; then
+  echo "rfd900: need at least $INSTANCES serial devices in RFD_USB_LIST (got ${#RFD_USB_DEVS[@]})."; exit 1
 fi
 
 cleanup() { pkill -P $$ || true; }
 trap cleanup EXIT INT TERM
 
-# -----------------------------
-# Port helpers
-# -----------------------------
+# -------- Port helpers --------
 serial0_for() {
   local idx="$1"
   case "$PROFILE" in
@@ -176,7 +179,6 @@ serial2_for() {
     sim|sim_only)  echo "udpclient:0.0.0.0:$((5000 + 1000*(idx-1)))" ;;
     rfd900)        echo "uart:${RFD_USB_DEVS[$((idx-1))]}:$RFD_BAUD" ;;
     pi)
-      # Use ith pair; if shorter list, reuse the last one for remaining instances
       local sel="${PI_TARGETS[$((idx-1))]:-${PI_TARGETS[-1]}}"
       echo "udpclient:${sel}"
       ;;
@@ -185,7 +187,7 @@ serial2_for() {
 }
 
 build_router_args() {
-  local args=( -v -s "$ROUTER_SYSID" --tcp-port 0 )   # <— -s 255 by default
+  local args=( -v -s "$ROUTER_SYSID" --tcp-port 0 )
   case "$PROFILE" in
     sim)
       for p in "${WIN_OUT_PORTS[@]}"; do args+=( --endpoint "$WIN_IP:$p" ); done
@@ -208,10 +210,7 @@ build_router_args() {
   printf '%s\0' "${args[@]}"
 }
 
-
-# -----------------------------
-# Launch SITL instances
-# -----------------------------
+# -------- Launch SITL --------
 for i in $(seq 1 "$INSTANCES"); do
   (
     cd "$ARDUPILOT_DIR/$i"
@@ -229,9 +228,7 @@ for i in $(seq 1 "$INSTANCES"); do
   ) &
 done
 
-# -----------------------------
-# Launch router (optional)
-# -----------------------------
+# -------- Launch router --------
 if [[ "$RUN_ROUTER" == "1" ]]; then
   echo "Starting mavlink-routerd..."
   mapfile -d '' ROUTER_ARGS < <(build_router_args)
