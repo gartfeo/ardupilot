@@ -206,6 +206,29 @@ serial2_for() {
   esac
 }
 
+home_coords() {
+  local i="$1"
+  local lat_base=40.3117414
+  local lon_base=44.455211099999985
+  local alt_base=1294.86
+
+  # --- grid step size (~2 m between UAVs) ---
+  local lat_step=0.000018
+  local lon_step=0.000025
+
+  # --- grid layout ---
+  # Example: 3x3 for 9 UAVs, 4x4 for 16, etc.
+  local cols
+  cols=$(awk -v n="$INSTANCES" 'BEGIN {printf "%d", sqrt(n); if (sqrt(n) != int(sqrt(n))) printf "+1"}' | bc)
+
+  local row=$(( (i - 1) / cols ))
+  local col=$(( (i - 1) % cols ))
+
+  local lat=$(awk -v b="$lat_base" -v s="$lat_step" -v r="$row" 'BEGIN {printf "%.8f", b + r * s}')
+  local lon=$(awk -v b="$lon_base" -v s="$lon_step" -v c="$col" 'BEGIN {printf "%.8f", b + c * s}')
+  echo "$lat,$lon,$alt_base,0.0"
+}
+
 build_router_args() {
   local args=( -v -s "$ROUTER_SYSID" --tcp-port 0 )
   case "$PROFILE" in
@@ -236,6 +259,7 @@ for i in $(seq 1 "$INSTANCES"); do
     cd "$ARDUPILOT_DIR/$i"
     idx=$(( i - 1 ))
     echo "Starting SITL #$i (sysid=$i, -I$idx)"
+  
     "$BIN" \
       -S --model "$MODEL" --speedup "$SPEEDUP" --slave 0 \
       --defaults "$DEFAULTS" \
@@ -243,7 +267,7 @@ for i in $(seq 1 "$INSTANCES"); do
       --serial1="$(serial1_for "$i")" \
       --serial2="$(serial2_for "$i")" \
       --sim-address=127.0.0.1 -I"$idx" \
-      --home "$HOME_COORDS" \
+      --home "$(home_coords "$i")" \
       --sysid "$i"
   ) &
 done
