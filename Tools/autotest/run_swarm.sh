@@ -213,8 +213,8 @@ home_coords() {
   local alt_base=1294.86
 
   # grid spacing (~2 m)
-  local lat_step=0.000018
-  local lon_step=0.000025
+  local lat_step=0.000036
+  local lon_step=0.000050
 
   # compute grid columns (integer ceil of sqrt)
   local sqrt_n
