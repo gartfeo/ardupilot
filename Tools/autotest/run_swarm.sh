@@ -76,6 +76,9 @@ while [[ $# -gt 0 ]]; do
     -n|--instances)
       [[ $# -lt 2 ]] && { echo "Missing value for $1"; exit 1; }
       INSTANCES="$2"; shift 2 ;;
+    -d|--dist)
+      [[ $# -lt 2 ]] && { echo "Missing value for $1"; exit 1; }
+      DIST_M="$2"; shift 2 ;;
     sim|sim_only|rfd900|pi)
       PROFILE="$1"; shift ;;
     *)
@@ -212,26 +215,25 @@ home_coords() {
   local lon_base=44.455211099999985
   local alt_base=1294.86
 
-  # grid spacing (~2 m)
-  local lat_step=0.000036
-  local lon_step=0.000050
+  # Parameters
+  local DIST_M="${DIST_M:-2}"
+  local PER_ROW="${PER_ROW:-3}"
 
-  # compute grid columns (integer ceil of sqrt)
-  local sqrt_n
-  sqrt_n=$(awk -v n="$INSTANCES" 'BEGIN {printf "%d", sqrt(n)}')
-  local cols=$(( sqrt_n * sqrt_n == INSTANCES ? sqrt_n : sqrt_n + 1 ))
-  (( cols == 0 )) && cols=1   # safety fallback
+  # Convert meters → degrees
+  local lat_step lon_step
+  lat_step=$(awk -v d="$DIST_M" 'BEGIN {printf "%.8f", d / 111111}')
+  lon_step=$(awk -v d="$DIST_M" -v lat="$lat_base" 'BEGIN {printf "%.8f", d / (111111 * cos(lat * 3.14159 / 180))}')
 
-  # compute row/col indices
-  local row=$(( (i - 1) / cols ))
-  local col=$(( (i - 1) % cols ))
+  # Grid positions
+  local idx=$((i - 1))
+  local row=$(( idx / PER_ROW ))
+  local col=$(( idx % PER_ROW ))
 
-  # compute coordinates
   local lat=$(awk -v b="$lat_base" -v s="$lat_step" -v r="$row" 'BEGIN {printf "%.8f", b + r * s}')
   local lon=$(awk -v b="$lon_base" -v s="$lon_step" -v c="$col" 'BEGIN {printf "%.8f", b + c * s}')
+
   echo "$lat,$lon,$alt_base,0.0"
 }
-
 
 build_router_args() {
   local args=( -v -s "$ROUTER_SYSID" --tcp-port 0 )
