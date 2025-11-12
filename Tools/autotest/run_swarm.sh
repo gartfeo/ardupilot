@@ -212,22 +212,26 @@ home_coords() {
   local lon_base=44.455211099999985
   local alt_base=1294.86
 
-  # --- grid step size (~2 m between UAVs) ---
+  # grid spacing (~2 m)
   local lat_step=0.000018
   local lon_step=0.000025
 
-  # --- grid layout ---
-  # Example: 3x3 for 9 UAVs, 4x4 for 16, etc.
-  local cols
-  cols=$(awk -v n="$INSTANCES" 'BEGIN {printf "%d", sqrt(n); if (sqrt(n) != int(sqrt(n))) printf "+1"}' | bc)
+  # compute grid columns (integer ceil of sqrt)
+  local sqrt_n
+  sqrt_n=$(awk -v n="$INSTANCES" 'BEGIN {printf "%d", sqrt(n)}')
+  local cols=$(( sqrt_n * sqrt_n == INSTANCES ? sqrt_n : sqrt_n + 1 ))
+  (( cols == 0 )) && cols=1   # safety fallback
 
+  # compute row/col indices
   local row=$(( (i - 1) / cols ))
   local col=$(( (i - 1) % cols ))
 
+  # compute coordinates
   local lat=$(awk -v b="$lat_base" -v s="$lat_step" -v r="$row" 'BEGIN {printf "%.8f", b + r * s}')
   local lon=$(awk -v b="$lon_base" -v s="$lon_step" -v c="$col" 'BEGIN {printf "%.8f", b + c * s}')
   echo "$lat,$lon,$alt_base,0.0"
 }
+
 
 build_router_args() {
   local args=( -v -s "$ROUTER_SYSID" --tcp-port 0 )
