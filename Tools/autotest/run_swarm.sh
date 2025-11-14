@@ -210,7 +210,9 @@ serial2_for() {
 }
 
 home_coords() {
-  local i="$1"
+  local i="$1"  
+  # local lat_base=40.3103 # ScyClub
+  # local lon_base=44.4392 # ScyClub
   local lat_base=40.3117414
   local lon_base=44.455211099999985
   local alt_base=1294.86
