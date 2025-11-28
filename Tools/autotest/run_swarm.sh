@@ -20,21 +20,12 @@ FLAGS:
   -h, --help           show this help
 
 DEFAULT WINDOWS ENDPOINT PORTS (SIM/RFD900/PI):
-<<<<<<< HEAD
   Generated from N using: 14500, 14550 + 10*k for k = 0..N  (i.e., N+1 ports)
   Examples: N=1 → 14500,14550,14560;  N=3 → 14500,14550,14560,14570,14580
   Override with: ROUTER_WIN_PORTS="14550,14555,..." (comma-separated)
 
 ENV OVERRIDES (common):
   INSTANCES (2)  MODEL (plane)  SPEEDUP (5)
-=======
-  Generated from N using: 14550 + 10*k for k = 0..N  (i.e., N+1 ports)
-  Examples: N=1 → 14550,14560;  N=3 → 14550,14560,14570,14580
-  Override with: ROUTER_WIN_PORTS="14550,14555,..." (comma-separated)
-
-ENV OVERRIDES (common):
-  INSTANCES (2)     MODEL (plane)     SPEEDUP (5)
->>>>>>> a016a57bf0d332a703afda8a24786d9bffff7a61
   ARDUPILOT_DIR ($HOME/ardupilot)
   BIN (…/build/sitl/bin/arduplane)
   DEFAULTS (…/Tools/autotest/models/plane.parm)
