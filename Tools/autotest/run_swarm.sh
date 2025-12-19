@@ -119,8 +119,7 @@ fi
 # Generate default Windows ports from N if not overridden:
 generate_win_ports() {
   local n="$1" base=14550 step="${2:-10}"
-  local -a out=()
-  # N+1 ports: k=0..N
+  local -a out=(14500)
   for ((k=0; k<=n; k++)); do out+=("$((base + step*k))"); done
   (IFS=','; echo "${out[*]}")
 }
@@ -186,84 +185,62 @@ trap cleanup EXIT INT TERM
 serial0_for() {
   local idx="$1"
   case "$PROFILE" in
-    sim|sim_only|jsbsim|jsbsim_only)  echo "tcp:127.0.0.1:$((5760 + 10*(idx-1))):nowait" ;;
-    rfd900)                          echo "tcp:0.0.0.0:$((5660 + 10*(idx-1))):nowait" ;;
-    pi)                              echo "tcp:0.0.0.0:$((5760 + 10*(idx-1))):nowait" ;;
-    *)                               echo "tcp:127.0.0.1:$((5760 + 10*(idx-1))):nowait" ;;
+    rfd900) echo "tcp:0.0.0.0:$((5660 + 10*(idx-1))):nowait" ;;
+    pi)     echo "tcp:0.0.0.0:$((5760 + 10*(idx-1))):nowait" ;;
+    *)      echo "tcp:127.0.0.1:$((5760 + 10*(idx-1))):nowait" ;;
   esac
 }
 
 serial1_for() {
   local idx="$1"
   case "$PROFILE" in
-    sim|sim_only|jsbsim|jsbsim_only|rfd900) echo "tcp:$WIN_IP:$((5762 + 10*(idx-1)))" ;;
-    pi)                                    echo "udpclient:0.0.0.0:$((5000 + 1000*(idx-1)))" ;;
-    *)                                     echo "tcp:$WIN_IP:$((5762 + 10*(idx-1)))" ;;
+    pi) echo "udpclient:0.0.0.0:$((5000 + 1000*(idx-1)))" ;;
+    *)  echo "tcp:$WIN_IP:$((5762 + 10*(idx-1)))" ;;
   esac
 }
 
 serial2_for() {
   local idx="$1"
   case "$PROFILE" in
-    sim|sim_only|jsbsim|jsbsim_only) echo "udpclient:0.0.0.0:$((5000 + 1000*(idx-1)))" ;;
-    rfd900)                          echo "uart:${RFD_USB_DEVS[$((idx-1))]}:$RFD_BAUD" ;;
-    pi)
-      local sel="${PI_TARGETS[$((idx-1))]:-${PI_TARGETS[-1]}}"
-      echo "udpclient:${sel}"
-      ;;
-    *)                               echo "udpclient:0.0.0.0:$((5000 + 1000*(idx-1)))" ;;
+    rfd900) echo "uart:${RFD_USB_DEVS[$((idx-1))]}:$RFD_BAUD" ;;
+    pi)     echo "udpclient:${PI_TARGETS[$((idx-1))]:-${PI_TARGETS[-1]}}" ;;
+    *)      echo "udpclient:0.0.0.0:$((5000 + 1000*(idx-1)))" ;;
   esac
 }
 
 home_coords() {
   local i="$1"
-  local lat_base=40.3117414
-  local lon_base=44.455211099999985
-  local alt_base=1294.86
+  IFS=',' read -r lat_base lon_base alt_base _ <<< "$HOME_COORDS"
+  local dist="${DIST_M:-2}" per_row="${PER_ROW:-3}"
+  local idx=$((i - 1)) row=$((idx / per_row)) col=$((idx % per_row))
 
-  # Parameters
-  local DIST_M_LOCAL="${DIST_M:-2}"
-  local PER_ROW="${PER_ROW:-3}"
-
-  # Convert meters → degrees
-  local lat_step lon_step
-  lat_step=$(awk -v d="$DIST_M_LOCAL" 'BEGIN {printf "%.8f", d / 111111}')
-  lon_step=$(awk -v d="$DIST_M_LOCAL" -v lat="$lat_base" 'BEGIN {printf "%.8f", d / (111111 * cos(lat * 3.14159 / 180))}')
-
-  # Grid positions
-  local idx=$((i - 1))
-  local row=$(( idx / PER_ROW ))
-  local col=$(( idx % PER_ROW ))
-
-  local lat
-  local lon
-  lat=$(awk -v b="$lat_base" -v s="$lat_step" -v r="$row" 'BEGIN {printf "%.8f", b + r * s}')
-  lon=$(awk -v b="$lon_base" -v s="$lon_step" -v c="$col" 'BEGIN {printf "%.8f", b + c * s}')
-
-  echo "$lat,$lon,$alt_base,0.0"
+  awk -v lat="$lat_base" -v lon="$lon_base" -v alt="$alt_base" \
+      -v d="$dist" -v r="$row" -v c="$col" 'BEGIN {
+    lat_step = d / 111111
+    lon_step = d / (111111 * cos(lat * 3.14159 / 180))
+    printf "%.8f,%.8f,%s,0.0", lat + r * lat_step, lon + c * lon_step, alt
+  }'
 }
 
 build_router_args() {
   local args=( -v -s "$ROUTER_SYSID" --tcp-port 0 )
+
+  # Add Windows endpoints (or local for *_only profiles)
+  if [[ "$PROFILE" == *_only ]]; then
+    args+=( --endpoint "0.0.0.0:15000" )
+  else
+    for p in "${WIN_OUT_PORTS[@]}"; do args+=( --endpoint "$WIN_IP:$p" ); done
+  fi
+
+  # Add PI extra endpoints
+  [[ "$PROFILE" == "pi" ]] && for e in "${PI_ROUTER_EXTRA[@]}"; do [[ -n "$e" ]] && args+=( --endpoint "$e" ); done
+
+  # Add sources
   case "$PROFILE" in
-    sim|jsbsim)
-      for p in "${WIN_OUT_PORTS[@]}"; do args+=( --endpoint "$WIN_IP:$p" ); done
-      for i in $(seq 1 "$INSTANCES"); do args+=( "127.0.0.1:$((5000 + 1000*(i-1)))" ); done
-      ;;
-    sim_only|jsbsim_only)
-      args+=( --endpoint "0.0.0.0:15000" )
-      for i in $(seq 1 "$INSTANCES"); do args+=( "127.0.0.1:$((5000 + 1000*(i-1)))" ); done
-      ;;
-    rfd900)
-      for p in "${WIN_OUT_PORTS[@]}"; do args+=( --endpoint "$WIN_IP:$p" ); done
-      args+=( "$RFD_USB_ROUTER:$RFD_BAUD" )
-      ;;
-    pi)
-      for p in "${WIN_OUT_PORTS[@]}"; do args+=( --endpoint "$WIN_IP:$p" ); done
-      for e in "${PI_ROUTER_EXTRA[@]}"; do [[ -n "$e" ]] && args+=( --endpoint "$e" ); done
-      for i in $(seq 1 "$INSTANCES"); do args+=( "127.0.0.1:$((5000 + 1000*(i-1)))" ); done
-      ;;
+    rfd900) args+=( "$RFD_USB_ROUTER:$RFD_BAUD" ) ;;
+    *)      for i in $(seq 1 "$INSTANCES"); do args+=( "127.0.0.1:$((5000 + 1000*(i-1)))" ); done ;;
   esac
+
   printf '%s\0' "${args[@]}"
 }
 
