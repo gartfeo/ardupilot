@@ -1,9 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
-# HARDWARE TEST VERSION (non-configurable):
-# - SITL #1 serial2 -> /dev/ttyUSB0 @115200
-# - SITL #2 serial2 -> /dev/ttyUSB1 @115200
+# HARDWARE TEST VERSION (simple, not configurable):
+# - 2 SITL instances
+# - Uses ArduPilot defaults like the “big script”:
+#     --defaults plane.parm
+#     --model plane
+#     --speedup 5
+#     --slave 0
+# - serial2 -> UARTs (/dev/ttyUSB0, /dev/ttyUSB1) @115200
 # - mavlink-routerd reads from /dev/ttyUSB2 @115200
 # - Windows IP auto-detected in WSL (or pass as arg)
 
@@ -25,9 +30,13 @@ fi
 
 echo "Using Windows IP: $WIN_IP"
 
-# ---- ArduPilot paths ----
+# ---- ArduPilot config (copied from big script style) ----
 ARDUPILOT_DIR="$HOME/ardupilot"
 BIN="$ARDUPILOT_DIR/build/sitl/bin/arduplane"
+DEFAULTS="$ARDUPILOT_DIR/Tools/autotest/models/plane.parm"
+HOME_COORDS="40.3117414,44.455211099999985,1294.86,0.0"
+MODEL="plane"
+SPEEDUP="5"
 
 if [[ ! -x "$BIN" ]]; then
   echo "ERROR: SITL binary not found/executable: $BIN"
@@ -37,6 +46,16 @@ if [[ ! -x "$BIN" ]]; then
   echo "  ./waf plane"
   exit 1
 fi
+
+if [[ ! -f "$DEFAULTS" ]]; then
+  echo "ERROR: Defaults not found: $DEFAULTS"
+  exit 1
+fi
+
+echo "Using SITL BIN: $BIN"
+echo "Defaults: $DEFAULTS"
+echo "Model: $MODEL  Speedup: $SPEEDUP"
+echo "Home: $HOME_COORDS"
 
 # ---- Hardware devices (hardcoded) ----
 UART_BAUD=115200
@@ -54,7 +73,6 @@ done
 
 mkdir -p "$ARDUPILOT_DIR"/{1,2}
 
-# Optional: kill children on exit
 cleanup() { pkill -P $$ 2>/dev/null || true; }
 trap cleanup EXIT INT TERM
 
@@ -62,12 +80,13 @@ trap cleanup EXIT INT TERM
 (
   cd "$ARDUPILOT_DIR/1"
   "$BIN" \
-      -S --model plane --speedup 5 \
+      -S --model "$MODEL" --speedup "$SPEEDUP" --slave 0 \
+      --defaults "$DEFAULTS" \
       --serial0=tcp:0.0.0.0:5660:nowait \
       --serial1=tcp:${WIN_IP}:5762 \
       --serial2=uart:${UART1}:${UART_BAUD} \
       --sim-address=127.0.0.1 -I0 \
-      --home 40.3117414,44.455211099999985,1294.86,0 \
+      --home "$HOME_COORDS" \
       --sysid 1
 ) &
 
@@ -75,12 +94,13 @@ trap cleanup EXIT INT TERM
 (
   cd "$ARDUPILOT_DIR/2"
   "$BIN" \
-      -S --model plane --speedup 5 \
+      -S --model "$MODEL" --speedup "$SPEEDUP" --slave 0 \
+      --defaults "$DEFAULTS" \
       --serial0=tcp:0.0.0.0:5670:nowait \
       --serial1=tcp:${WIN_IP}:5772 \
       --serial2=uart:${UART2}:${UART_BAUD} \
       --sim-address=127.0.0.1 -I1 \
-      --home 40.3117414,44.455211099999985,1294.86,0 \
+      --home "$HOME_COORDS" \
       --sysid 2
 ) &
 
