@@ -1,18 +1,24 @@
 #!/bin/bash
 set -euo pipefail
 
-# HARDWARE TEST VERSION (simple, not configurable):
-# - 2 SITL instances
-# - Uses ArduPilot defaults like the “big script”:
-#     --defaults plane.parm
-#     --model plane
-#     --speedup 5
-#     --slave 0
-# - serial2 -> UARTs (/dev/ttyUSB0, /dev/ttyUSB1) @115200
-# - mavlink-routerd reads from /dev/ttyUSB2 @115200
-# - Windows IP auto-detected in WSL (or pass as arg)
+# SITL Swarm Simulation with RFD900 radios
+#
+# All settings configurable via environment variables:
+#   WIN_IP         - Windows host IP (auto-detected in WSL)
+#   NUM_INSTANCES  - Number of SITL instances (default: 2)
+#   ARDUPILOT_DIR  - ArduPilot directory (default: $HOME/ardupilot)
+#   MODEL          - Vehicle model (default: plane)
+#   SPEEDUP        - Simulation speedup (default: 5)
+#   HOME_COORDS    - Home coordinates (default: Armenia)
+#   UART_BAUD      - UART baud rate (default: 115200)
+#   USE_UARTS      - Enable hardware UARTs (default: true)
+#   ROUTER_UART    - Router UART device (default: /dev/ttyUSB{NUM_INSTANCES})
+#
+# Usage: $0 [WIN_IP] [NUM_INSTANCES]
+#   or set environment variables before running
 
-WIN_IP="${1:-}"
+WIN_IP="${1:-${WIN_IP:-}}"
+NUM_INSTANCES="${2:-${NUM_INSTANCES:-2}}"
 
 # ---- Detect Windows host IP in WSL if not provided ----
 if [[ -z "$WIN_IP" ]]; then
@@ -24,19 +30,28 @@ if [[ -z "$WIN_IP" ]]; then
 fi
 
 if [[ -z "${WIN_IP:-}" ]]; then
-  echo "ERROR: Windows IP not detected. Pass it explicitly: $0 <WIN_IP>"
+  echo "ERROR: Windows IP not detected. Pass it explicitly: $0 <WIN_IP> [NUM_INSTANCES]"
+  exit 1
+fi
+
+if ! [[ "$NUM_INSTANCES" =~ ^[0-9]+$ ]] || [[ "$NUM_INSTANCES" -lt 1 ]]; then
+  echo "ERROR: NUM_INSTANCES must be a positive integer (got: $NUM_INSTANCES)"
   exit 1
 fi
 
 echo "Using Windows IP: $WIN_IP"
+echo "Number of instances: $NUM_INSTANCES"
 
-# ---- ArduPilot config (copied from big script style) ----
-ARDUPILOT_DIR="$HOME/ardupilot"
+# ---- Configuration (env vars with defaults) ----
+ARDUPILOT_DIR="${ARDUPILOT_DIR:-$HOME/ardupilot}"
+MODEL="${MODEL:-plane}"
+SPEEDUP="${SPEEDUP:-5}"
+HOME_COORDS="${HOME_COORDS:-40.3117414,44.455211099999985,1294.86,0.0}"
+UART_BAUD="${UART_BAUD:-115200}"
+USE_UARTS="${USE_UARTS:-true}"
+
 BIN="$ARDUPILOT_DIR/build/sitl/bin/arduplane"
 DEFAULTS="$ARDUPILOT_DIR/Tools/autotest/models/plane.parm"
-HOME_COORDS="40.3117414,44.455211099999985,1294.86,0.0"
-MODEL="plane"
-SPEEDUP="5"
 
 if [[ ! -x "$BIN" ]]; then
   echo "ERROR: SITL binary not found/executable: $BIN"
@@ -57,62 +72,76 @@ echo "Defaults: $DEFAULTS"
 echo "Model: $MODEL  Speedup: $SPEEDUP"
 echo "Home: $HOME_COORDS"
 
-# ---- Hardware devices (hardcoded) ----
-UART_BAUD=115200
-UART1=/dev/ttyUSB0
-UART2=/dev/ttyUSB1
-ROUTER_UART=/dev/ttyUSB2
+# ---- Hardware devices (optional) ----
+ROUTER_UART="${ROUTER_UART:-/dev/ttyUSB${NUM_INSTANCES}}"
 
-for dev in "$UART1" "$UART2" "$ROUTER_UART"; do
-  if [[ ! -e "$dev" ]]; then
-    echo "ERROR: Missing device: $dev"
-    echo "Check: ls -l /dev/ttyUSB*"
-    exit 1
-  fi
+if [[ "$USE_UARTS" == "true" ]]; then
+  # Check required UARTs for each instance
+  for i in $(seq 0 $((NUM_INSTANCES - 1))); do
+    dev="/dev/ttyUSB${i}"
+    if [[ ! -e "$dev" ]]; then
+      echo "ERROR: Missing device: $dev (needed for instance $((i + 1)))"
+      echo "Check: ls -l /dev/ttyUSB*"
+      exit 1
+    fi
+  done
+  echo "Using hardware UARTs: /dev/ttyUSB0 - /dev/ttyUSB$((NUM_INSTANCES - 1))"
+else
+  echo "Hardware UARTs disabled (USE_UARTS=false)"
+fi
+
+# Create instance directories
+for i in $(seq 1 "$NUM_INSTANCES"); do
+  mkdir -p "$ARDUPILOT_DIR/$i"
 done
-
-mkdir -p "$ARDUPILOT_DIR"/{1,2}
 
 cleanup() { pkill -P $$ 2>/dev/null || true; }
 trap cleanup EXIT INT TERM
 
-# ---- SITL instance 1 ----
-(
-  cd "$ARDUPILOT_DIR/1"
-  "$BIN" \
-      -S --model "$MODEL" --speedup "$SPEEDUP" --slave 0 \
-      --defaults "$DEFAULTS" \
-      --serial0=tcp:0.0.0.0:5660:nowait \
-      --serial1=tcp:${WIN_IP}:5762 \
-      --serial2=uart:${UART1}:${UART_BAUD} \
-      --sim-address=127.0.0.1 -I0 \
-      --home "$HOME_COORDS" \
-      --sysid 1
-) &
+# ---- Launch SITL instances ----
+for i in $(seq 1 "$NUM_INSTANCES"); do
+  idx=$((i - 1))
+  serial0_port=$((5660 + idx * 10))
+  serial1_port=$((5762 + idx * 10))
 
-# ---- SITL instance 2 ----
-(
-  cd "$ARDUPILOT_DIR/2"
-  "$BIN" \
-      -S --model "$MODEL" --speedup "$SPEEDUP" --slave 0 \
-      --defaults "$DEFAULTS" \
-      --serial0=tcp:0.0.0.0:5670:nowait \
-      --serial1=tcp:${WIN_IP}:5772 \
-      --serial2=uart:${UART2}:${UART_BAUD} \
-      --sim-address=127.0.0.1 -I1 \
-      --home "$HOME_COORDS" \
-      --sysid 2
-) &
+  # Build serial2 argument (UART or disabled)
+  if [[ "$USE_UARTS" == "true" ]]; then
+    uart_dev="/dev/ttyUSB${idx}"
+    serial2_arg="--serial2=uart:${uart_dev}:${UART_BAUD}"
+    echo "Starting SITL instance $i (sysid=$i, serial0=:$serial0_port, serial1=:$serial1_port, uart=$uart_dev)"
+  else
+    serial2_arg=""
+    echo "Starting SITL instance $i (sysid=$i, serial0=:$serial0_port, serial1=:$serial1_port)"
+  fi
 
-# ---- Router: read from ground radio, forward to Windows ports ----
-(
-  mavlink-routerd -v -s 255 \
-      --tcp-port 0 \
-      --endpoint ${WIN_IP}:14550 \
-      --endpoint ${WIN_IP}:14500 \
-      --endpoint ${WIN_IP}:14560 \
-      --endpoint ${WIN_IP}:14570 \
-      ${ROUTER_UART}:${UART_BAUD}
-) &
+  (
+    cd "$ARDUPILOT_DIR/$i"
+    "$BIN" \
+        -S --model "$MODEL" --speedup "$SPEEDUP" --slave 0 \
+        --defaults "$DEFAULTS" \
+        --serial0=tcp:0.0.0.0:${serial0_port}:nowait \
+        --serial1=tcp:${WIN_IP}:${serial1_port} \
+        $serial2_arg \
+        --sim-address=127.0.0.1 -I${idx} \
+        --home "$HOME_COORDS" \
+        --sysid $i
+  ) &
+done
+
+# ---- Router: read from ground radio, forward to Windows ports (optional) ----
+if [[ -e "$ROUTER_UART" ]]; then
+  echo "Starting mavlink-routerd on $ROUTER_UART"
+  (
+    mavlink-routerd -v -s 255 \
+        --tcp-port 0 \
+        --endpoint ${WIN_IP}:14550 \
+        --endpoint ${WIN_IP}:14500 \
+        --endpoint ${WIN_IP}:14560 \
+        --endpoint ${WIN_IP}:14570 \
+        ${ROUTER_UART}:${UART_BAUD}
+  ) &
+else
+  echo "Router UART ($ROUTER_UART) not found - skipping mavlink-routerd"
+fi
 
 wait
