@@ -12,6 +12,7 @@ USAGE:
 PROFILES:
   sim       : serial2 -> local UDP (5000, 6000, …). Router -> Windows $WIN_IP.
   sim_only  : like 'sim', but router exports 0.0.0.0:15000 (no Windows endpoints).
+  wsl       : like 'sim', but router endpoints use 127.0.0.1 instead of Windows IP.
   jsbsim    : like 'sim', but --model jsbsim:<AIRCRAFT> and JSBSim defaults (plane-jsbsim.parm).
   jsbsim_only: like 'sim_only', but JSBSim model/defaults.
   rfd900    : serial2 -> UART (/dev/ttyUSB* per instance). Router reads from RFD device.
@@ -82,7 +83,7 @@ while [[ $# -gt 0 ]]; do
     -d|--dist)
       [[ $# -lt 2 ]] && { echo "Missing value for $1"; exit 1; }
       DIST_M="$2"; shift 2 ;;
-    sim|sim_only|jsbsim|jsbsim_only|rfd900|pi)
+    sim|sim_only|wsl|jsbsim|jsbsim_only|rfd900|pi)
       PROFILE="$1"; shift ;;
     *)
       echo "Unknown arg: $1"; echo; usage; exit 1 ;;
@@ -225,9 +226,11 @@ home_coords() {
 build_router_args() {
   local args=( -v -s "$ROUTER_SYSID" --tcp-port 0 )
 
-  # Add Windows endpoints (or local for *_only profiles)
+  # Add Windows endpoints (or local for *_only/wsl profiles)
   if [[ "$PROFILE" == *_only ]]; then
     args+=( --endpoint "0.0.0.0:15000" )
+  elif [[ "$PROFILE" == "wsl" ]]; then
+    for p in "${WIN_OUT_PORTS[@]}"; do args+=( --endpoint "0.0.0.0:$p" ); done
   else
     for p in "${WIN_OUT_PORTS[@]}"; do args+=( --endpoint "$WIN_IP:$p" ); done
   fi
