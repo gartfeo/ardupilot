@@ -8,7 +8,7 @@ nice fgfs \
     --aircraft=Rascal110-JSBSim \
     --fg-aircraft="$AUTOTESTDIR/aircraft" \
     --units-meters \
-    --lat=40.3117408 --lon=44.4552112 --altitude=1295.10 \
+    --lat=40.3117408 --lon=44.4552112 \
     --geometry=650x550 \
     --bpp=32 \
     --disable-hud-3d \
