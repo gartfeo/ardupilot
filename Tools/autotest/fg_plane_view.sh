@@ -7,7 +7,8 @@ nice fgfs \
     --fdm=external \
     --aircraft=Rascal110-JSBSim \
     --fg-aircraft="$AUTOTESTDIR/aircraft" \
-    --airport=YKRY \
+    --units-meters \
+    --lat=40.3117408 --lon=44.4552112 --altitude=1295.10 \
     --geometry=650x550 \
     --bpp=32 \
     --disable-hud-3d \
