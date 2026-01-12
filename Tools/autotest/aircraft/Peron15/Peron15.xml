@@ -90,34 +90,34 @@
             <location unit="IN">
                 <x> 25 </x>
                 <y> -28 </y>
-                <z> -2 </z>
+                <z> -3 </z>
             </location>
             <static_friction> 0.8 </static_friction>
             <dynamic_friction> 0.5 </dynamic_friction>
-            <spring_coeff unit="LBS/FT"> 800 </spring_coeff>
-            <damping_coeff unit="LBS/FT/SEC"> 150 </damping_coeff>
+            <spring_coeff unit="LBS/FT"> 500 </spring_coeff>
+            <damping_coeff unit="LBS/FT/SEC"> 300 </damping_coeff>
         </contact>
         <contact type="STRUCTURE" name="RIGHT_WING">
             <location unit="IN">
                 <x> 25 </x>
                 <y> 28 </y>
-                <z> -2 </z>
+                <z> -3 </z>
             </location>
             <static_friction> 0.8 </static_friction>
             <dynamic_friction> 0.5 </dynamic_friction>
-            <spring_coeff unit="LBS/FT"> 800 </spring_coeff>
-            <damping_coeff unit="LBS/FT/SEC"> 150 </damping_coeff>
+            <spring_coeff unit="LBS/FT"> 500 </spring_coeff>
+            <damping_coeff unit="LBS/FT/SEC"> 300 </damping_coeff>
         </contact>
         <contact type="STRUCTURE" name="TAIL">
             <location unit="IN">
                 <x> 35 </x>
                 <y> 0 </y>
-                <z> -2 </z>
+                <z> -3 </z>
             </location>
             <static_friction> 0.8 </static_friction>
             <dynamic_friction> 0.5 </dynamic_friction>
-            <spring_coeff unit="LBS/FT"> 800 </spring_coeff>
-            <damping_coeff unit="LBS/FT/SEC"> 150 </damping_coeff>
+            <spring_coeff unit="LBS/FT"> 500 </spring_coeff>
+            <damping_coeff unit="LBS/FT/SEC"> 300 </damping_coeff>
         </contact>
     </ground_reactions>
 
