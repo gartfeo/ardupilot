@@ -1,0 +1,175 @@
+<?xml version="1.0"?>
+<!--
+************************************************************************
+Peron15 Delta Wing UAV config. This file ties together all the components
+used by FGFS to represent the Peron15 including the flight dynamics model,
+and external 3D model.
+
+Aircraft Specifications:
+- Wingspan: 154cm
+- Wing Area: 7779.5 cm^2
+- Weight: 7.46 kg
+- Configuration: Delta wing, elevons only, electric pusher
+************************************************************************
+-->
+
+<PropertyList>
+ <sim>
+
+  <description>Peron15 Delta Wing UAV</description>
+  <author>Peron15 UAV Team</author>
+  <aircraft-version>1.0</aircraft-version>
+  <model-hz>400</model-hz>
+
+  <startup>
+    <splash-texture>Aircraft/Peron15/Peron15-splash.rgb</splash-texture>
+  </startup>
+
+  <flight-model>jsb</flight-model>
+  <aero>Peron15</aero>
+  <fuel-fraction>0.8</fuel-fraction>
+
+  <systems>
+   <autopilot>
+    <path>Aircraft/Peron15/Systems/110-autopilot.xml</path>
+   </autopilot>
+   <electrical>
+    <path>Aircraft/Peron15/Systems/electrical.xml</path>
+   </electrical>
+  </systems>
+
+  <sound>
+   <path>Aircraft/Generic/generic-sound.xml</path>
+  </sound>
+
+  <panel>
+   <visibility archive="n">false</visibility>
+  </panel>
+
+  <model>
+   <path archive="y">Aircraft/Rascal/Models/Rascal110.xml</path>
+  </model>
+
+  <view>
+   <internal archive="y">true</internal>
+   <config>
+     <x-offset-m archive="y">0.0</x-offset-m>
+     <y-offset-m archive="y">-0.15</y-offset-m>
+     <z-offset-m archive="y">0.9</z-offset-m>
+     <pitch-offset-deg>0</pitch-offset-deg>
+   </config>
+  </view>
+
+  <submodels>
+    <serviceable type="bool">1</serviceable>
+    <path>Aircraft/Peron15/Peron15-submodels.xml</path>
+  </submodels>
+
+  <view n="1">
+   <config>
+    <target-z-offset-m archive="y" type="double">0.5</target-z-offset-m>
+   </config>
+  </view>
+
+  <view n="2">
+   <config>
+    <target-z-offset-m archive="y" type="double">0.5</target-z-offset-m>
+   </config>
+  </view>
+
+  <view n="3">
+   <config>
+    <target-z-offset-m archive="y" type="double">0.5</target-z-offset-m>
+   </config>
+  </view>
+
+  <view n="4">
+   <config>
+    <target-z-offset-m archive="y" type="double">0.5</target-z-offset-m>
+   </config>
+  </view>
+
+  <view n="5">
+   <config>
+    <target-z-offset-m archive="y" type="double">0.5</target-z-offset-m>
+   </config>
+  </view>
+
+  <view n="6">
+   <config>
+    <target-z-offset-m archive="y" type="double">0.5</target-z-offset-m>
+   </config>
+  </view>
+
+  <multiplay>
+    <chat_display>1</chat_display>
+    <generic>
+      <int type="bool">0</int>  <!-- smoke -->
+      <int type="bool">0</int>  <!-- trajectory markers -->
+    </generic>
+  </multiplay>
+
+  <help>
+    <title>Peron15 Delta Wing UAV</title>
+    <line>Cruise speed: 24 m/s (47 kts)</line>
+    <line>Never-exceed (Vne): 40 m/s (78 kts)</line>
+    <line>Best Glide: 18 m/s (35 kts)</line>
+    <line>Approach speed: 15 m/s (29 kts)</line>
+    <line>Stall speed (Vs): 12 m/s (23 kts)</line>
+    <line>Weight: 7.46 kg</line>
+    <line>Wingspan: 154 cm</line>
+  </help>
+
+ </sim>
+
+ <nasal>
+  <peron15>
+   <file>Aircraft/Peron15/Systems/main.nas</file>
+   <file>Aircraft/Peron15/Systems/airdata.nas</file>
+   <file>Aircraft/Peron15/Systems/ugear.nas</file>
+      <script>
+         setlistener("/sim/signals/fdm-initialized", func {
+             var left  = screen.display.new(20, 10);
+             left.add("/apm/aileron");
+             left.add("/apm/elevator");
+             left.add("/apm/rudder");
+             left.add("/apm/throttle");
+
+             var right = screen.display.new(-250, 20);
+             right.add("/apm/pitch");
+             right.add("/apm/roll");
+             right.add("/apm/altitude");
+             right.add("/apm/heading");
+             right.add("/apm/airspeed");
+             right.add("/apm/groundspeed");
+         });
+        </script>
+  </peron15>
+ </nasal>
+
+ <input>
+   <keyboard include="Peron15-keyboard.xml"/>
+ </input>
+
+ <controls>
+  <flight>
+   <aileron-trim>0.00</aileron-trim>
+   <elevator-trim>0.00</elevator-trim>
+   <rudder-trim>0.00</rudder-trim>
+  </flight>
+  <engines>
+   <engine n="0">
+    <magnetos>3</magnetos>
+   </engine>
+  </engines>
+  <smoke alias="/sim/multiplay/generic/int[0]"/>
+  <trajectory-markers alias="/sim/multiplay/generic/int[1]"/>
+ </controls>
+
+ <engines>
+  <engine>
+   <rpm type="double">1000</rpm>
+  </engine>
+ </engines>
+
+</PropertyList>

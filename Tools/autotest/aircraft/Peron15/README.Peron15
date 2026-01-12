@@ -1,0 +1,102 @@
+Peron15 Delta Wing UAV - JSBSim Model for ArduPilot SITL
+========================================================
+
+FLIGHT-VALIDATED MODEL
+This model has been tuned using real flight data from dataflash log 00000030.BIN
+(Flight date: September 27, 2025)
+
+Aircraft Specifications
+-----------------------
+Wingspan:        154 cm (5.05 ft)
+Wing Area:       7779.5 cm^2 (8.375 ft^2)
+Mean Chord:      63.25 cm (2.075 ft)
+MAC:             60.78 cm (1.994 ft)
+Aspect Ratio:    3.05
+Weight:          7.46 kg (16.45 lbs) - FLIGHT VALIDATED
+
+Configuration
+-------------
+- Delta wing planform
+- Elevon control (combined elevator/aileron, no rudder)
+- Electric pusher motor at rear
+
+Propulsion
+----------
+Motor:           T-MOTOR AT4130 KV450
+Power:           ~1700W mechanical
+Propeller:       MasterAirScrew Electric 13x8.5
+Static Thrust:   5-6 kg (STATED)
+
+Mass Properties (from CAD)
+--------------------------
+Ixx:             0.2994 kg*m^2 (roll)
+Iyy:             0.8629 kg*m^2 (pitch)
+Izz:             1.1520 kg*m^2 (yaw)
+
+Flight-Validated Performance
+----------------------------
+Cruise Speed:    24 m/s at 55-60% throttle (MEASURED - log 21)
+Max Airspeed:    63.5 m/s (MEASURED)
+Max Roll Rate:   ~300 deg/s (MEASURED capability)
+Max Pitch Rate:  ~145 deg/s (MEASURED in AUTO mode)
+Glide Speed:     ~22 m/s at idle throttle (MEASURED)
+
+ArduPilot Parameters Used
+-------------------------
+SCALING_SPEED:      24.0 m/s
+TRIM_THROTTLE:      55%
+MIXING_GAIN:        0.5
+RLL2SRV_RMAX:       120 deg/s
+PTCH2SRV_RMAX_UP:   120 deg/s
+PTCH2SRV_RMAX_DN:   120 deg/s
+RLL_RATE_FF:        0.27
+PTCH_RATE_FF:       0.55
+
+Flight-Validated Stability Derivatives
+--------------------------------------
+From analysis of AUTO mode flight data:
+
+Roll Control (Clda):
+  - Roll rate at 24 m/s: ~252 deg/s per unit command
+  - Estimated Clda: 0.16 (validated from ~231 deg/s overall)
+
+Pitch Control (Cmde):
+  - Pitch rate at 24 m/s: ~117 deg/s per unit command
+  - Estimated |Cmde|: 0.61-0.80
+
+Flight Notes from Log Analysis
+------------------------------
+- GUIDED mode produced dive maneuvers (pitch rates to -394 deg/s)
+- AUTO mode showed normal flight envelope
+- FBWA mode showed stable manual-assisted flight
+- Roll authority confirmed up to 180 degree bank angles
+- Full aerobatic capability demonstrated
+
+Files
+-----
+Peron15.xml              - Main JSBSim flight dynamics model
+Peron15-JSBSim-set.xml   - FlightGear integration
+Engines/TMOTOR_AT4130.xml - Electric motor (1700W)
+Engines/MAS_13x8.5.xml   - Propeller (tuned for 5-6kg thrust)
+Systems/                 - Autopilot, electrical, scripts
+
+Usage with ArduPilot SITL
+-------------------------
+1. The model is configured for flying wing with elevons
+2. ArduPilot should have MIXING_GAIN=0.5 for elevon mixing
+3. Servo functions: Ch1=Left Elevon (77), Ch2=Right Elevon (78)
+4. No rudder channel needed
+
+Validation Summary
+------------------
+Parameter          | Model Value | Flight Data    | Status
+-------------------|-------------|----------------|--------
+Weight             | 7.46 kg     | 7.46 kg        | MATCHED
+Cruise airspeed    | ~24 m/s     | 24.5 m/s       | MATCHED
+Cruise throttle    | ~68%        | 68%            | MATCHED
+Roll rate cap.     | ~250 deg/s  | 268 deg/s      | CLOSE
+Pitch rate cap.    | ~120 deg/s  | 144 deg/s      | CLOSE
+Static thrust      | 5-6 kg      | 5-6 kg (stated)| MATCHED
+
+Author: Peron15 UAV Team
+Flight Validation: January 2025

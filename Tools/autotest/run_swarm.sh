@@ -43,6 +43,9 @@ PROFILE ENVS:
     JSBSIM_MODEL="jsbsim:Rascal"   (or any jsbsim:<AircraftName> your tree supports)
     JSBSIM_DEFAULTS=".../Tools/autotest/default_params/plane-jsbsim.parm"
 
+    For Peron15 delta wing UAV:
+    JSBSIM_MODEL="jsbsim:Peron15" JSBSIM_DEFAULTS=".../default_params/plane-jsbsim-peron15.parm"
+
   rfd900:
     RFD_USB_LIST="/dev/ttyUSB0,/dev/ttyUSB1"  RFD_USB_ROUTER="/dev/ttyUSB2"  RFD_BAUD=115200
 

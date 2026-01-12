@@ -1,0 +1,25 @@
+#!/bin/sh
+
+AUTOTESTDIR=$(dirname $0)
+
+nice fgfs \
+    --native-fdm=socket,in,10,,5503,udp \
+    --fdm=external \
+    --aircraft=Peron15-JSBSim \
+    --fg-aircraft="$AUTOTESTDIR/aircraft" \
+    --units-meters \
+    --lat=40.3117408 --lon=44.4552112 \
+    --geometry=650x550 \
+    --bpp=32 \
+    --disable-hud-3d \
+    --disable-horizon-effect \
+    --timeofday=noon \
+    --disable-sound \
+    --disable-fullscreen \
+    --disable-random-objects \
+    --disable-ai-models \
+    --fog-disable \
+    --disable-specular-highlight \
+    --disable-anti-alias-hud \
+    --wind=0@0 \
+    $*
