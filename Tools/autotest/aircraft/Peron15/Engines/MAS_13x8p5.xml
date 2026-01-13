@@ -19,7 +19,7 @@
   <maxrpm>9000</maxrpm>
   <constspeed>0</constspeed>
   <reversepitch>0</reversepitch>
-  <sense>1</sense>
+  <sense>-1</sense>
 
   <!-- Thrust coefficient table vs advance ratio (J) -->
   <table name="C_THRUST" type="internal">

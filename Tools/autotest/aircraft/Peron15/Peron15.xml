@@ -118,7 +118,7 @@
       <feed>0</feed>
       <thruster file="MAS_13x8p5">
         <location unit="IN"><x>48.74</x><y>0.0</y><z>0.0</z></location>
-        <orient unit="DEG"><pitch>0</pitch><roll>0</roll><yaw>180</yaw></orient>
+        <orient unit="DEG"><pitch>0</pitch><roll>0</roll><yaw>0</yaw></orient>
       </thruster>
     </engine>
 
