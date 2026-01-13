@@ -80,30 +80,31 @@
 
   <!-- ============================================================= -->
   <!-- GROUND REACTIONS (belly landing contacts)                      -->
+  <!-- Soft springs + high damping for stable ground behavior         -->
   <!-- ============================================================= -->
   <ground_reactions>
     <contact type="STRUCTURE" name="NOSE">
-      <location unit="IN"><x>5.9</x><y>0.0</y><z>-2.5</z></location>
+      <location unit="IN"><x>5.9</x><y>0.0</y><z>-2.0</z></location>
       <static_friction>0.80</static_friction>
       <dynamic_friction>0.50</dynamic_friction>
-      <spring_coeff unit="LBS/FT">600</spring_coeff>
-      <damping_coeff unit="LBS/FT/SEC">120</damping_coeff>
+      <spring_coeff unit="LBS/FT">150</spring_coeff>
+      <damping_coeff unit="LBS/FT/SEC">50</damping_coeff>
     </contact>
 
     <contact type="STRUCTURE" name="LEFT_WING">
-      <location unit="IN"><x>39.4</x><y>-30.3</y><z>-2.5</z></location>
+      <location unit="IN"><x>39.4</x><y>-30.3</y><z>-3.0</z></location>
       <static_friction>0.80</static_friction>
       <dynamic_friction>0.50</dynamic_friction>
-      <spring_coeff unit="LBS/FT">600</spring_coeff>
-      <damping_coeff unit="LBS/FT/SEC">120</damping_coeff>
+      <spring_coeff unit="LBS/FT">150</spring_coeff>
+      <damping_coeff unit="LBS/FT/SEC">50</damping_coeff>
     </contact>
 
     <contact type="STRUCTURE" name="RIGHT_WING">
-      <location unit="IN"><x>39.4</x><y>30.3</y><z>-2.5</z></location>
+      <location unit="IN"><x>39.4</x><y>30.3</y><z>-3.0</z></location>
       <static_friction>0.80</static_friction>
       <dynamic_friction>0.50</dynamic_friction>
-      <spring_coeff unit="LBS/FT">600</spring_coeff>
-      <damping_coeff unit="LBS/FT/SEC">120</damping_coeff>
+      <spring_coeff unit="LBS/FT">150</spring_coeff>
+      <damping_coeff unit="LBS/FT/SEC">50</damping_coeff>
     </contact>
   </ground_reactions>
 
