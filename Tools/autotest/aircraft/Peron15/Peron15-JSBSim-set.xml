@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<!--
+  Peron15 Delta Wing UAV - FlightGear/JSBSim configuration
+  For use with ArduPilot SITL
+
+  Note: This is a minimal configuration. Visual model not included.
+-->
+<PropertyList>
+  <sim>
+    <description>Peron15 Delta Wing UAV</description>
+    <author>ArduPilot SITL</author>
+    <status>alpha</status>
+
+    <flight-model>jsb</flight-model>
+    <aero>Peron15</aero>
+
+    <view n="0">
+      <internal archive="y">true</internal>
+      <config>
+        <x-offset-m archive="y">0.0</x-offset-m>
+        <y-offset-m archive="y">0.0</y-offset-m>
+        <z-offset-m archive="y">0.08</z-offset-m>
+        <pitch-offset-deg>-5</pitch-offset-deg>
+        <default-field-of-view-deg>70</default-field-of-view-deg>
+      </config>
+    </view>
+
+  </sim>
+
+</PropertyList>

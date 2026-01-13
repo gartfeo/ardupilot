@@ -1,0 +1,885 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="http://jsbsim.sourceforge.net/JSBSim.xsl"?>
+<fdm_config name="Peron15" version="2.0" release="ALPHA"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:noNamespaceSchemaLocation="http://jsbsim.sourceforge.net/JSBSim.xsd">
+
+ <fileheader>
+  <author>Generated for ArduPilot SITL</author>
+  <filecreationdate>2025-01-13</filecreationdate>
+  <version>1.1</version>
+  <description>
+    Peron15 Delta Wing UAV - Similar to Zala Aero Kub
+    Catapult launched, belly landing capable
+
+    Geometry:
+      Length:      1238 mm (48.7 in)
+      Wingspan:    1540 mm (60.6 in)
+      Wing Area:   7779.5 cm2 (8.37 ft2)
+      MAC:         607.8 mm (23.93 in)
+      Wing LE:     250 mm from nose
+
+    Planform (half-span sections, from OpenVSP):
+      Section 1: 0-40mm span, 950mm chord (center body)
+      Section 2: 40-420mm span, 950-340mm taper
+      Section 3: 420-770mm span, 340-265mm taper
+
+    Mass:
+      Weight:      7.46 kg (16.45 lbs)
+      CG:          640.7 mm from nose (25.22 in)
+      Ixx/Iyy/Izz: 0.239 / 0.534 / 0.766 slug-ft2
+
+    Propulsion:
+      Motor: T-MOTOR AT4130 KV450 (1700W)
+      Prop:  MAS 13x8.5 pusher
+      Battery: 2x 8S3P Molicel P45B (28.8V, 778Wh)
+
+    Flight:
+      Cruise speed: 24 m/s (78.7 ft/s, 46.6 kts)
+      Cruise throttle: 55 percent
+
+    Pure flying wing - no vertical surfaces
+    Yaw control via differential elevon drag
+  </description>
+ </fileheader>
+
+ <!--
+ =====================================================================
+ METRICS - Aircraft reference dimensions
+ =====================================================================
+ -->
+ <metrics>
+   <wingarea  unit="FT2">    8.37  </wingarea>
+   <wingspan  unit="FT">     5.05  </wingspan>
+   <wing_incidence unit="DEG"> 0.0 </wing_incidence>
+   <chord     unit="FT">     1.994 </chord>
+
+   <!-- Aerodynamic Reference Point - matches CFD moment reference at CG -->
+   <location name="AERORP" unit="IN">
+     <x> 25.22 </x>
+     <y>  0.0  </y>
+     <z>  0.0  </z>
+   </location>
+
+   <!-- Pilot eye location (for camera in sim) -->
+   <location name="EYEPOINT" unit="IN">
+     <x> 12.0 </x>
+     <y>  0.0 </y>
+     <z>  3.0 </z>
+   </location>
+
+   <!-- Visual Reference Point -->
+   <location name="VRP" unit="IN">
+     <x>  0.0 </x>
+     <y>  0.0 </y>
+     <z>  0.0 </z>
+   </location>
+ </metrics>
+
+ <!--
+ =====================================================================
+ MASS BALANCE - Inertia and CG location
+ =====================================================================
+ -->
+ <mass_balance>
+   <ixx unit="SLUG*FT2"> 0.239 </ixx>
+   <iyy unit="SLUG*FT2"> 0.534 </iyy>
+   <izz unit="SLUG*FT2"> 0.766 </izz>
+   <ixy unit="SLUG*FT2"> 0.0   </ixy>
+   <ixz unit="SLUG*FT2"> 0.0   </ixz>
+   <iyz unit="SLUG*FT2"> 0.0   </iyz>
+   <emptywt unit="LBS"> 16.45 </emptywt>
+
+   <!-- CG at 640.7mm = 25.22 inches from nose -->
+   <location name="CG" unit="IN">
+     <x> 25.22 </x>
+     <y>  0.0  </y>
+     <z>  0.0  </z>
+   </location>
+ </mass_balance>
+
+ <!--
+ =====================================================================
+ GROUND REACTIONS - 3-point belly landing contacts
+ =====================================================================
+ Catapult launched UAV - contacts for belly landing/crash only
+ Triangle: NOSE(5.9,0) - LEFT_WING(39.4,-30.3) - RIGHT_WING(39.4,+30.3)
+ CG at (25.22, 0) is inside triangle for stability
+ -->
+ <ground_reactions>
+   <!-- Forward nose contact (belly landing) -->
+   <contact type="STRUCTURE" name="NOSE">
+    <location unit="IN">
+      <x>  5.9  </x>
+      <y>  0.0  </y>
+      <z> -2.5  </z>
+    </location>
+    <static_friction>  0.80 </static_friction>
+    <dynamic_friction> 0.50 </dynamic_friction>
+    <spring_coeff unit="LBS/FT"> 600 </spring_coeff>
+    <damping_coeff unit="LBS/FT/SEC"> 120 </damping_coeff>
+   </contact>
+
+   <!-- Left wingtip trailing edge contact (belly landing) -->
+   <contact type="STRUCTURE" name="LEFT_WING">
+    <location unit="IN">
+      <x> 39.4  </x>
+      <y>-30.3  </y>
+      <z> -2.5  </z>
+    </location>
+    <static_friction>  0.80 </static_friction>
+    <dynamic_friction> 0.50 </dynamic_friction>
+    <spring_coeff unit="LBS/FT"> 600 </spring_coeff>
+    <damping_coeff unit="LBS/FT/SEC"> 120 </damping_coeff>
+   </contact>
+
+   <!-- Right wingtip trailing edge contact (belly landing) -->
+   <contact type="STRUCTURE" name="RIGHT_WING">
+    <location unit="IN">
+      <x> 39.4  </x>
+      <y> 30.3  </y>
+      <z> -2.5  </z>
+    </location>
+    <static_friction>  0.80 </static_friction>
+    <dynamic_friction> 0.50 </dynamic_friction>
+    <spring_coeff unit="LBS/FT"> 600 </spring_coeff>
+    <damping_coeff unit="LBS/FT/SEC"> 120 </damping_coeff>
+   </contact>
+ </ground_reactions>
+
+ <!--
+ =====================================================================
+ PROPULSION - Electric motor and pusher propeller
+ =====================================================================
+ -->
+ <propulsion>
+   <!-- T-MOTOR AT4130 KV450 with MAS 13x8.5 pusher -->
+   <engine file="AT4130_KV450">
+    <location unit="IN">
+      <x> 47.24 </x>
+      <y>  0.0  </y>
+      <z>  0.0  </z>
+    </location>
+    <orient unit="DEG">
+      <pitch> 0 </pitch>
+      <roll>  0 </roll>
+      <yaw>   0 </yaw>
+    </orient>
+    <feed> 0 </feed>
+    <thruster file="MAS_13x8p5">
+     <location unit="IN">
+       <x> 48.74 </x>
+       <y>  0.0  </y>
+       <z>  0.0  </z>
+     </location>
+     <orient unit="DEG">
+       <pitch> 0 </pitch>
+       <roll>  0 </roll>
+       <yaw>   0 </yaw>
+     </orient>
+    </thruster>
+   </engine>
+
+   <!-- Battery represented as fuel tank for mass tracking -->
+   <tank type="FUEL" number="0">
+     <location unit="IN">
+       <x> 25.0 </x>
+       <y>  0.0 </y>
+       <z>  0.0 </z>
+     </location>
+     <capacity unit="LBS"> 0.0 </capacity>
+     <contents unit="LBS"> 0.0 </contents>
+   </tank>
+ </propulsion>
+
+ <!--
+ =====================================================================
+ FLIGHT CONTROL - Elevon mixing for delta wing
+ =====================================================================
+ Inputs:
+   fcs/elevator-cmd-norm  : Pitch command (-1 to +1)
+   fcs/aileron-cmd-norm   : Roll command (-1 to +1)
+   fcs/rudder-cmd-norm    : Yaw command (-1 to +1) - split elevon yaw
+   fcs/throttle-cmd-norm  : Throttle (0 to 1)
+
+ Elevon mixing with coupled yaw control:
+   left-elevon  = elevator + aileron - yaw  (TE-up for yaw right)
+   right-elevon = elevator - aileron + yaw  (TE-down for yaw right)
+
+ Outputs used by aerodynamics:
+   fcs/left-elevon-pos-rad   : Left elevon position (clamped)
+   fcs/right-elevon-pos-rad  : Right elevon position (clamped)
+   fcs/yaw-elevon-rad        : Yaw command contribution (pre-mix)
+   fcs/yaw-effective-rad     : Actual yaw achieved (after saturation)
+
+ Note: Elevon saturation limits naturally constrain yaw authority when
+ pitch/roll commands are also active. The yaw-effective-rad property
+ correctly reflects reduced yaw authority when elevons are saturated.
+ -->
+ <flight_control name="Peron15 FCS">
+
+   <!-- ============================================================
+        SINGLE "ALL" CHANNEL - Rascal-style deterministic evaluation
+        ============================================================
+        All computations in one channel ensures no one-step lag between
+        intermediate properties. Order of evaluation:
+          1. Command scaling (pitch/roll/yaw to radians)
+          2. Elevon mixing + clipping
+          3. No-yaw elevon positions + clipping
+          4. Effective values (yaw/aileron/elevator)
+          5. Throttle
+          6. Normalized outputs for ArduPilot
+   -->
+   <channel name="All">
+
+     <!-- ========== 1. COMMAND SCALING ========== -->
+
+     <!-- Pitch command with trim -->
+     <summer name="fcs/pitch-trim-sum">
+       <input>fcs/elevator-cmd-norm</input>
+       <input>fcs/pitch-trim-cmd-norm</input>
+       <clipto>
+         <min>-1</min>
+         <max> 1</max>
+       </clipto>
+     </summer>
+
+     <aerosurface_scale name="fcs/elevator-pos-rad">
+       <input>fcs/pitch-trim-sum</input>
+       <range>
+         <min>-0.35</min>
+         <max> 0.35</max>
+       </range>
+       <output>fcs/elevator-pos-rad</output>
+     </aerosurface_scale>
+
+     <!-- Roll command with trim -->
+     <summer name="fcs/roll-trim-sum">
+       <input>fcs/aileron-cmd-norm</input>
+       <input>fcs/roll-trim-cmd-norm</input>
+       <clipto>
+         <min>-1</min>
+         <max> 1</max>
+       </clipto>
+     </summer>
+
+     <aerosurface_scale name="fcs/aileron-pos-rad">
+       <input>fcs/roll-trim-sum</input>
+       <range>
+         <min>-0.35</min>
+         <max> 0.35</max>
+       </range>
+       <output>fcs/aileron-pos-rad</output>
+     </aerosurface_scale>
+
+     <!-- Yaw command with trim (split elevon differential) -->
+     <!-- Positive yaw cmd: left elevon TE-up (more drag), right TE-down -->
+     <summer name="fcs/yaw-trim-sum">
+       <input>fcs/rudder-cmd-norm</input>
+       <input>fcs/yaw-trim-cmd-norm</input>
+       <clipto>
+         <min>-1</min>
+         <max> 1</max>
+       </clipto>
+     </summer>
+
+     <aerosurface_scale name="fcs/yaw-elevon-rad">
+       <input>fcs/yaw-trim-sum</input>
+       <range>
+         <min>-0.20</min>
+         <max> 0.20</max>
+       </range>
+       <output>fcs/yaw-elevon-rad</output>
+     </aerosurface_scale>
+
+     <!-- ========== 2. ELEVON MIXING + CLIPPING ========== -->
+
+     <!-- Left elevon = elevator + aileron - yaw (TE-up for yaw right) -->
+     <summer name="fcs/left-elevon-sum">
+       <input>fcs/elevator-pos-rad</input>
+       <input>fcs/aileron-pos-rad</input>
+       <input>-fcs/yaw-elevon-rad</input>
+       <clipto>
+         <min>-0.52</min>
+         <max> 0.52</max>
+       </clipto>
+       <output>fcs/left-elevon-pos-rad</output>
+     </summer>
+
+     <!-- Right elevon = elevator - aileron + yaw (TE-down for yaw right) -->
+     <summer name="fcs/right-elevon-sum">
+       <input>fcs/elevator-pos-rad</input>
+       <input>-fcs/aileron-pos-rad</input>
+       <input>fcs/yaw-elevon-rad</input>
+       <clipto>
+         <min>-0.52</min>
+         <max> 0.52</max>
+       </clipto>
+       <output>fcs/right-elevon-pos-rad</output>
+     </summer>
+
+     <!-- ========== 3. NO-YAW ELEVON POSITIONS ========== -->
+     <!-- What elevons would be without yaw command (for effective pitch/roll) -->
+
+     <!-- Left elevon without yaw (clamped) -->
+     <fcs_function name="fcs/left-elevon-no-yaw">
+       <function>
+         <min>
+           <max>
+             <sum>
+               <property>fcs/elevator-pos-rad</property>
+               <property>fcs/aileron-pos-rad</property>
+             </sum>
+             <value>-0.52</value>
+           </max>
+           <value>0.52</value>
+         </min>
+       </function>
+     </fcs_function>
+
+     <!-- Right elevon without yaw (clamped) -->
+     <fcs_function name="fcs/right-elevon-no-yaw">
+       <function>
+         <min>
+           <max>
+             <difference>
+               <property>fcs/elevator-pos-rad</property>
+               <property>fcs/aileron-pos-rad</property>
+             </difference>
+             <value>-0.52</value>
+           </max>
+           <value>0.52</value>
+         </min>
+       </function>
+     </fcs_function>
+
+     <!-- ========== 4. EFFECTIVE VALUES ========== -->
+     <!-- Used by aerodynamics for saturation-aware responses -->
+
+     <!-- Effective yaw = average of actual yaw contribution to each elevon -->
+     <!-- yaw_left = no_yaw - actual (how much left moved toward TE-up) -->
+     <!-- yaw_right = actual - no_yaw (how much right moved toward TE-down) -->
+     <fcs_function name="fcs/yaw-effective-rad">
+       <function>
+         <product>
+           <sum>
+             <difference>
+               <property>fcs/left-elevon-no-yaw</property>
+               <property>fcs/left-elevon-pos-rad</property>
+             </difference>
+             <difference>
+               <property>fcs/right-elevon-pos-rad</property>
+               <property>fcs/right-elevon-no-yaw</property>
+             </difference>
+           </sum>
+           <value>0.5</value>
+         </product>
+       </function>
+     </fcs_function>
+
+     <!-- Effective elevator after pitch+roll saturation (no yaw, for pitch/lift aero) -->
+     <!-- elevator = (left + right) / 2 -->
+     <fcs_function name="fcs/elevator-effective-rad">
+       <function>
+         <product>
+           <sum>
+             <property>fcs/left-elevon-no-yaw</property>
+             <property>fcs/right-elevon-no-yaw</property>
+           </sum>
+           <value>0.5</value>
+         </product>
+       </function>
+     </fcs_function>
+
+     <!-- Effective aileron after pitch+roll saturation (no yaw, for roll/adverse-yaw aero) -->
+     <!-- aileron = (left - right) / 2 -->
+     <fcs_function name="fcs/aileron-effective-rad">
+       <function>
+         <product>
+           <difference>
+             <property>fcs/left-elevon-no-yaw</property>
+             <property>fcs/right-elevon-no-yaw</property>
+           </difference>
+           <value>0.5</value>
+         </product>
+       </function>
+     </fcs_function>
+
+     <!-- ========== 5. THROTTLE ========== -->
+     <!-- Note: zero_centered=false for 0-1 input range -->
+     <aerosurface_scale name="fcs/throttle-pos-norm">
+       <input>fcs/throttle-cmd-norm</input>
+       <zero_centered>false</zero_centered>
+       <domain>
+         <min>0</min>
+         <max>1</max>
+       </domain>
+       <range>
+         <min>0</min>
+         <max>1</max>
+       </range>
+       <output>fcs/throttle-pos-norm[0]</output>
+     </aerosurface_scale>
+
+     <!-- ========== 6. NORMALIZED OUTPUTS FOR ARDUPILOT ========== -->
+
+     <aerosurface_scale name="Elevator Normalized">
+       <input>fcs/elevator-pos-rad</input>
+       <domain>
+         <min>-0.35</min>
+         <max> 0.35</max>
+       </domain>
+       <range>
+         <min>-1</min>
+         <max> 1</max>
+       </range>
+       <output>fcs/elevator-pos-norm</output>
+     </aerosurface_scale>
+
+     <aerosurface_scale name="Left Elevon Normalized">
+       <input>fcs/left-elevon-pos-rad</input>
+       <domain>
+         <min>-0.52</min>
+         <max> 0.52</max>
+       </domain>
+       <range>
+         <min>-1</min>
+         <max> 1</max>
+       </range>
+       <output>fcs/left-aileron-pos-norm</output>
+     </aerosurface_scale>
+
+     <aerosurface_scale name="Right Elevon Normalized">
+       <input>fcs/right-elevon-pos-rad</input>
+       <domain>
+         <min>-0.52</min>
+         <max> 0.52</max>
+       </domain>
+       <range>
+         <min>-1</min>
+         <max> 1</max>
+       </range>
+       <output>fcs/right-aileron-pos-norm</output>
+     </aerosurface_scale>
+
+     <!-- Note: Flying wing has no physical rudder. Maps yaw command to
+          rudder-pos-norm for ArduPilot compatibility. Actual yaw control
+          is via split elevon differential. -->
+     <aerosurface_scale name="Yaw Command Normalized">
+       <input>fcs/yaw-elevon-rad</input>
+       <domain>
+         <min>-0.20</min>
+         <max> 0.20</max>
+       </domain>
+       <range>
+         <min>-1</min>
+         <max> 1</max>
+       </range>
+       <output>fcs/rudder-pos-norm</output>
+     </aerosurface_scale>
+
+   </channel>
+
+ </flight_control>
+
+ <!--
+ =====================================================================
+ AERODYNAMICS - Based on CFD data at 24 m/s with extended guard points
+ =====================================================================
+ Reference conditions:
+   Cruise speed: 24 m/s = 78.74 ft/s
+   Wing area: 8.37 ft2
+   MAC: 1.994 ft
+   Wingspan: 5.05 ft
+   Moment reference: CG (640.7mm from nose)
+
+ CFD Data (alpha in degrees):
+   alpha    CD        CL          CM
+   -5       0.0247   -0.2348      0.3334
+   -2.5     0.0140   -0.1043      0.1485
+    0       0.0107    0.0187     -0.0226
+    2.5     0.0118    0.1654     -0.2321
+    5       0.0202    0.3093     -0.4392
+    7.5     0.0356    0.4433     -0.6352
+   10       0.0674    0.5069     -0.7351
+   12.5     0.0984    0.5740     -0.8347
+   15       0.1357    0.6546     -0.9586
+
+ Tables extended to +/-30 deg to prevent nonsense extrapolation.
+ Uses effective elevon values for saturation-aware aero responses.
+ =====================================================================
+ -->
+ <aerodynamics>
+
+   <!-- ============ DRAG AXIS ============ -->
+   <axis name="DRAG">
+
+     <!-- Basic drag coefficient from CFD data with guard points -->
+     <!-- CFD range: -5 to 15 deg. Guard points prevent crazy extrapolation. -->
+     <function name="aero/coefficient/CD_basic">
+       <description>Drag coefficient vs alpha from CFD</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <table>
+           <independentVar>aero/alpha-deg</independentVar>
+           <tableData>
+            -30.0    0.50
+            -25.0    0.35
+            -20.0    0.22
+            -10.0    0.06
+             -5.0    0.0247
+             -2.5    0.0140
+              0.0    0.0107
+              2.5    0.0118
+              5.0    0.0202
+              7.5    0.0356
+             10.0    0.0674
+             12.5    0.0984
+             15.0    0.1357
+             20.0    0.22
+             25.0    0.35
+             30.0    0.50
+           </tableData>
+         </table>
+       </product>
+     </function>
+
+     <!-- Drag due to sideslip -->
+     <function name="aero/coefficient/CD_beta">
+       <description>Drag due to sideslip</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <abs><property>aero/beta-rad</property></abs>
+         <value>0.15</value>
+       </product>
+     </function>
+
+     <!-- Drag due to left elevon deflection (pitch/roll only, no yaw) -->
+     <function name="aero/coefficient/CD_left_elevon">
+       <description>Drag due to left elevon</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <abs><property>fcs/left-elevon-no-yaw</property></abs>
+         <value>0.02</value>
+       </product>
+     </function>
+
+     <!-- Drag due to right elevon deflection (pitch/roll only, no yaw) -->
+     <function name="aero/coefficient/CD_right_elevon">
+       <description>Drag due to right elevon</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <abs><property>fcs/right-elevon-no-yaw</property></abs>
+         <value>0.02</value>
+       </product>
+     </function>
+
+     <!-- Additional drag from split-elevon yaw control -->
+     <!-- Yaw deflects elevons asymmetrically; TE-up side creates more drag -->
+     <!-- Modeled as single term since abs(left)+abs(right) would be symmetric -->
+     <function name="aero/coefficient/CD_yaw">
+       <description>Drag from split elevon yaw deflection</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <abs><property>fcs/yaw-effective-rad</property></abs>
+         <value>0.04</value>
+       </product>
+     </function>
+
+   </axis>
+
+   <!-- ============ SIDE FORCE AXIS ============ -->
+   <axis name="SIDE">
+
+     <!-- Side force due to sideslip -->
+     <function name="aero/coefficient/CY_beta">
+       <description>Side force due to sideslip (weak for flying wing)</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <property>aero/beta-rad</property>
+         <value>-0.12</value>
+       </product>
+     </function>
+
+   </axis>
+
+   <!-- ============ LIFT AXIS ============ -->
+   <axis name="LIFT">
+
+     <!-- Basic lift coefficient from CFD data with guard points -->
+     <!-- CFD range: -5 to 15 deg. Guard points model stall behavior. -->
+     <!-- Delta wings have gentle stall: CL plateaus then slowly drops. -->
+     <function name="aero/coefficient/CL_basic">
+       <description>Lift coefficient vs alpha from CFD</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <table>
+           <independentVar>aero/alpha-deg</independentVar>
+           <tableData>
+            -30.0   -0.40
+            -25.0   -0.50
+            -20.0   -0.45
+            -10.0   -0.35
+             -5.0   -0.2348
+             -2.5   -0.1043
+              0.0    0.0187
+              2.5    0.1654
+              5.0    0.3093
+              7.5    0.4433
+             10.0    0.5069
+             12.5    0.5740
+             15.0    0.6546
+             20.0    0.65
+             25.0    0.55
+             30.0    0.45
+           </tableData>
+         </table>
+       </product>
+     </function>
+
+     <!-- Lift due to symmetric elevon (elevator function) -->
+     <!-- Uses effective elevator after saturation (no yaw leakage into pitch/lift) -->
+     <function name="aero/coefficient/CL_elevon">
+       <description>Lift due to symmetric elevon deflection</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <property>fcs/elevator-effective-rad</property>
+         <value>0.175</value>
+       </product>
+     </function>
+
+   </axis>
+
+   <!-- ============ ROLL MOMENT AXIS ============ -->
+   <axis name="ROLL">
+
+     <!-- Roll due to sideslip (dihedral effect) -->
+     <function name="aero/coefficient/Cl_beta">
+       <description>Roll moment due to sideslip</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <property>metrics/bw-ft</property>
+         <property>aero/beta-rad</property>
+         <value>-0.08</value>
+       </product>
+     </function>
+
+     <!-- Roll damping -->
+     <function name="aero/coefficient/Cl_p">
+       <description>Roll moment due to roll rate</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <property>metrics/bw-ft</property>
+         <property>aero/bi2vel</property>
+         <property>velocities/p-aero-rad_sec</property>
+         <value>-0.45</value>
+       </product>
+     </function>
+
+     <!-- Roll due to yaw rate -->
+     <function name="aero/coefficient/Cl_r">
+       <description>Roll moment due to yaw rate</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <property>metrics/bw-ft</property>
+         <property>aero/bi2vel</property>
+         <property>velocities/r-aero-rad_sec</property>
+         <value>0.08</value>
+       </product>
+     </function>
+
+     <!-- Roll moment from aileron (uses effective value after pitch+roll saturation) -->
+     <function name="aero/coefficient/Cl_aileron">
+       <description>Roll moment due to aileron input</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <property>metrics/bw-ft</property>
+         <property>fcs/aileron-effective-rad</property>
+         <value>0.075</value>
+       </product>
+     </function>
+
+     <!-- Roll coupling from split-elevon yaw (drag offset from centerline) -->
+     <!-- Small effect: asymmetric drag at wing creates roll moment -->
+     <function name="aero/coefficient/Cl_yaw_coupling">
+       <description>Roll moment from yaw control drag offset</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <property>metrics/bw-ft</property>
+         <property>fcs/yaw-effective-rad</property>
+         <value>0.008</value>
+       </product>
+     </function>
+
+   </axis>
+
+   <!-- ============ PITCH MOMENT AXIS ============ -->
+   <axis name="PITCH">
+
+     <!-- Basic pitching moment from CFD data with guard points (reference: CG) -->
+     <!-- CFD range: -5 to 15 deg. Guard points prevent Cm diving to infinity. -->
+     <!-- At stall, Cm saturates as the wing loses pitching effectiveness. -->
+     <function name="aero/coefficient/Cm_basic">
+       <description>Pitching moment vs alpha from CFD</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <property>metrics/cbarw-ft</property>
+         <table>
+           <independentVar>aero/alpha-deg</independentVar>
+           <tableData>
+            -30.0    0.55
+            -25.0    0.50
+            -20.0    0.45
+            -10.0    0.40
+             -5.0    0.3334
+             -2.5    0.1485
+              0.0   -0.0226
+              2.5   -0.2321
+              5.0   -0.4392
+              7.5   -0.6352
+             10.0   -0.7351
+             12.5   -0.8347
+             15.0   -0.9586
+             20.0   -1.00
+             25.0   -1.00
+             30.0   -0.90
+           </tableData>
+         </table>
+       </product>
+     </function>
+
+     <!-- Pitch damping -->
+     <function name="aero/coefficient/Cm_q">
+       <description>Pitch moment due to pitch rate</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <property>metrics/cbarw-ft</property>
+         <property>aero/ci2vel</property>
+         <property>velocities/q-aero-rad_sec</property>
+         <value>-12.0</value>
+       </product>
+     </function>
+
+     <!-- Pitch due to alpha rate -->
+     <function name="aero/coefficient/Cm_adot">
+       <description>Pitch moment due to alpha rate</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <property>metrics/cbarw-ft</property>
+         <property>aero/ci2vel</property>
+         <property>aero/alphadot-rad_sec</property>
+         <value>-5.0</value>
+       </product>
+     </function>
+
+     <!-- Pitch due to symmetric elevon (elevator function) -->
+     <!-- Uses elevator-effective-rad: effective elevator after pitch+roll saturation (no yaw) -->
+     <!-- This prevents yaw commands from inadvertently affecting pitch moment -->
+     <function name="aero/coefficient/Cm_elevon">
+       <description>Pitch moment due to symmetric elevon</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <property>metrics/cbarw-ft</property>
+         <property>fcs/elevator-effective-rad</property>
+         <value>-0.40</value>
+       </product>
+     </function>
+
+   </axis>
+
+   <!-- ============ YAW MOMENT AXIS ============ -->
+   <axis name="YAW">
+
+     <!-- Yaw due to sideslip (weathercock - weak without fin) -->
+     <function name="aero/coefficient/Cn_beta">
+       <description>Yaw moment due to sideslip</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <property>metrics/bw-ft</property>
+         <property>aero/beta-rad</property>
+         <value>0.02</value>
+       </product>
+     </function>
+
+     <!-- Yaw damping -->
+     <function name="aero/coefficient/Cn_r">
+       <description>Yaw moment due to yaw rate</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <property>metrics/bw-ft</property>
+         <property>aero/bi2vel</property>
+         <property>velocities/r-aero-rad_sec</property>
+         <value>-0.08</value>
+       </product>
+     </function>
+
+     <!-- Yaw due to roll rate (adverse yaw) -->
+     <function name="aero/coefficient/Cn_p">
+       <description>Yaw moment due to roll rate</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <property>metrics/bw-ft</property>
+         <property>aero/bi2vel</property>
+         <property>velocities/p-aero-rad_sec</property>
+         <value>-0.03</value>
+       </product>
+     </function>
+
+     <!-- Yaw control from split elevon differential drag -->
+     <!-- Uses effective yaw after elevon saturation (properly accounts for limits) -->
+     <function name="aero/coefficient/Cn_yaw_control">
+       <description>Yaw moment from split elevon differential drag</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <property>metrics/bw-ft</property>
+         <property>fcs/yaw-effective-rad</property>
+         <value>0.025</value>
+       </product>
+     </function>
+
+     <!-- Adverse yaw from aileron (uses effective value after pitch+roll saturation) -->
+     <function name="aero/coefficient/Cn_aileron">
+       <description>Adverse yaw from aileron input</description>
+       <product>
+         <property>aero/qbar-psf</property>
+         <property>metrics/Sw-sqft</property>
+         <property>metrics/bw-ft</property>
+         <property>fcs/aileron-effective-rad</property>
+         <value>-0.004</value>
+       </product>
+     </function>
+
+   </axis>
+
+ </aerodynamics>
+
+ <!--
+ =====================================================================
+ FLIGHTGEAR INTERFACE - UDP communication for visualization
+ =====================================================================
+ -->
+ <output name="localhost" type="FLIGHTGEAR" port="5503" protocol="udp" rate="10"/>
+ <input port="5505"/>
+
+</fdm_config>

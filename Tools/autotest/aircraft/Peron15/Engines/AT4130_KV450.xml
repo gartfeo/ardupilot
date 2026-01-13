@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!--
+  T-MOTOR AT4130 KV450 Electric Motor
+  Max Power: 1700W
+  Used on Peron15 Delta Wing UAV
+-->
+<electric_engine name="AT4130_KV450">
+  <power unit="WATTS">1700</power>
+</electric_engine>

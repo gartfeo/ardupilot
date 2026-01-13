@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<!--
+  MAS 13x8.5 Pusher Propeller
+  Diameter: 13 inches
+  Pitch: 8.5 inches
+  Used on Peron15 Delta Wing UAV with T-MOTOR AT4130 KV450
+
+  Propeller coefficients estimated for this diameter/pitch ratio
+  Advance ratio J = V / (n * D)
+-->
+<propeller name="MAS_13x8p5">
+  <ixx>0.00045</ixx>
+  <diameter unit="IN">13.0</diameter>
+  <numblades>2</numblades>
+  <gearratio>1.0</gearratio>
+  <minpitch>12</minpitch>
+  <maxpitch>12</maxpitch>
+  <minrpm>0</minrpm>
+  <maxrpm>9000</maxrpm>
+  <constspeed>0</constspeed>
+  <reversepitch>0</reversepitch>
+  <sense>-1</sense> <!-- Pusher configuration: -1 for reverse thrust direction -->
+
+  <!-- Thrust coefficient table vs advance ratio (J) -->
+  <table name="C_THRUST" type="internal">
+    <tableData>
+      0.0   0.095
+      0.1   0.092
+      0.2   0.087
+      0.3   0.080
+      0.4   0.072
+      0.5   0.062
+      0.6   0.050
+      0.7   0.037
+      0.8   0.022
+      0.9   0.006
+      1.0  -0.012
+      1.1  -0.030
+      1.2  -0.050
+    </tableData>
+  </table>
+
+  <!-- Power coefficient table vs advance ratio (J) -->
+  <table name="C_POWER" type="internal">
+    <tableData>
+      0.0   0.055
+      0.1   0.055
+      0.2   0.054
+      0.3   0.052
+      0.4   0.049
+      0.5   0.045
+      0.6   0.040
+      0.7   0.033
+      0.8   0.025
+      0.9   0.016
+      1.0   0.005
+      1.1  -0.008
+      1.2  -0.022
+    </tableData>
+  </table>
+</propeller>
