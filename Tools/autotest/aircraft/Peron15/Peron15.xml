@@ -582,7 +582,7 @@
           <property>metrics/Sw-sqft</property>
           <property>metrics/cbarw-ft</property>
           <property>fcs/elevator-effective-rad</property>
-          <value>-0.80</value>
+          <value>-0.50</value>
         </product>
       </function>
     </axis>
