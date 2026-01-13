@@ -13,13 +13,13 @@
   <diameter unit="IN">13.0</diameter>
   <numblades>2</numblades>
   <gearratio>1.0</gearratio>
-  <minpitch>12</minpitch>
-  <maxpitch>12</maxpitch>
+  <minpitch>16</minpitch>
+  <maxpitch>16</maxpitch>
   <minrpm>0</minrpm>
   <maxrpm>9000</maxrpm>
   <constspeed>0</constspeed>
   <reversepitch>0</reversepitch>
-  <sense>-1</sense> <!-- Pusher configuration: -1 for reverse thrust direction -->
+  <sense>1</sense>
 
   <!-- Thrust coefficient table vs advance ratio (J) -->
   <table name="C_THRUST" type="internal">
