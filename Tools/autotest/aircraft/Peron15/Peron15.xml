@@ -157,10 +157,9 @@
       </summer>
 
       <!-- ===== 2) SCALE TO RADIANS ===== -->
-      <!-- Negate elevator for flying wing: stick back = TE-UP = nose UP -->
       <aerosurface_scale name="Elevator Control">
         <input>fcs/pitch-trim-sum</input>
-        <range><min>0.35</min><max>-0.35</max></range>
+        <range><min>-0.35</min><max>0.35</max></range>
         <output>fcs/elevator-pos-rad</output>
       </aerosurface_scale>
 
