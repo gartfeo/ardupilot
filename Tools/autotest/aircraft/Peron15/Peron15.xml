@@ -84,7 +84,7 @@
   <!-- ============================================================= -->
   <ground_reactions>
     <contact type="STRUCTURE" name="NOSE">
-      <location unit="IN"><x>5.9</x><y>0.0</y><z>-2.0</z></location>
+      <location unit="IN"><x>5.9</x><y>0.0</y><z>-4.75</z></location>
       <static_friction>0.80</static_friction>
       <dynamic_friction>0.50</dynamic_friction>
       <spring_coeff unit="LBS/FT">150</spring_coeff>
