@@ -577,12 +577,14 @@
 
       <function name="aero/moment/pitch_elevon">
         <description>Pitch control from symmetric elevon (effective elevator)</description>
+        <!-- Flying wing: positive elevator-effective-rad = TE-DOWN = nose DOWN -->
+        <!-- So we need positive Cmde to get nose-UP from stick-back -->
         <product>
           <property>aero/qbar-psf</property>
           <property>metrics/Sw-sqft</property>
           <property>metrics/cbarw-ft</property>
           <property>fcs/elevator-effective-rad</property>
-          <value>-0.40</value>
+          <value>0.40</value>
         </product>
       </function>
     </axis>
