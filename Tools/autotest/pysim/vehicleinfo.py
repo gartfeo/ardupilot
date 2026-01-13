@@ -335,7 +335,7 @@ class VehicleInfo(object):
                 "external": True,
             },
             "jsbsim-peron15": {
-                "model": "jsbsim:Rascal",
+                "model": "jsbsim:Peron15",
                 "waf_target": "bin/arduplane",
                 "default_params_filename": "default_params/plane-jsbsim-peron15.parm",
                 "external": True,

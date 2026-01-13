@@ -115,12 +115,13 @@ TKOFF_LVL_ALT    5
 TKOFF_LVL_PITCH  15
 
 # ============ FLIGHT MODES ============
-FLTMODE1         5
+# 0=MANUAL, 2=STABILIZE, 5=FBWA, 6=FBWB, 7=CRUISE, 10=AUTO, 11=RTL, 12=LOITER, 15=GUIDED
+FLTMODE1         0
 FLTMODE2         5
-FLTMODE3         7
+FLTMODE3         6
 FLTMODE4         7
-FLTMODE5         8
-FLTMODE6         8
+FLTMODE5         10
+FLTMODE6         12
 FLTMODE_CH       5
 
 # ============ ACRO ============
