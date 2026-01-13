@@ -5,5 +5,5 @@
   Used on Peron15 Delta Wing UAV
 -->
 <electric_engine name="AT4130_KV450">
-  <power unit="WATTS">2500</power>
+  <power unit="WATTS">5000</power>
 </electric_engine>
