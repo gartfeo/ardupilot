@@ -528,6 +528,7 @@
         <propulsion> ON </propulsion>
     </output> -->
 
+  <output name="localhost" type="FLIGHTGEAR" port="5503" protocol="udp" rate="10" />
   <input port="5505"/>
 
 </fdm_config>
