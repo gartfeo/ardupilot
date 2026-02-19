@@ -24,8 +24,9 @@ FLAGS:
   -d, --dist M         spacing between vehicles in meters (default 2)
 
 DEFAULT WINDOWS ENDPOINT PORTS (SIM/RFD900/PI/JSBSIM):
-  Generated from N using:14500, 14550 + 10*k for k = 0..N  (i.e., N+1 ports)
-  Examples: N=1 → 14500,14550,14560;  N=3 → 14500,14550,14560,14570,14580
+  Static ports: 14500, 14510, 14520, 14550 (always included)
+  Dynamic ports: 14550 + 10*k for k = 1..N (i.e., 14560, 14570, ...)
+  Examples: N=1 → 14500,14510,14520,14550,14560;  N=3 → 14500,14510,14520,14550,14560,14570,14580
   Override with: ROUTER_WIN_PORTS="14550,14555,..." (comma-separated)
 
 ENV OVERRIDES (common):
@@ -120,8 +121,8 @@ fi
 # Generate default Windows ports from N if not overridden:
 generate_win_ports() {
   local n="$1" base=14550 step="${2:-10}"
-  local -a out=(14500)
-  for ((k=0; k<=n; k++)); do out+=("$((base + step*k))"); done
+  local -a out=(14500 14510 14520 14550)
+  for ((k=1; k<=n; k++)); do out+=("$((base + step*k))"); done
   (IFS=','; echo "${out[*]}")
 }
 ROUTER_WIN_PORTS="${ROUTER_WIN_PORTS:-$(generate_win_ports "$INSTANCES" "$ROUTER_WIN_STEP")}"
