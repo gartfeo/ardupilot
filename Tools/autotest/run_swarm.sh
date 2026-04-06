@@ -231,7 +231,7 @@ build_router_args() {
   if [[ "$PROFILE" == *_only ]]; then
     args+=( --endpoint "0.0.0.0:15000" )
   elif [[ "$PROFILE" == "wsl" ]]; then
-    for p in "${WIN_OUT_PORTS[@]}"; do args+=( --endpoint "0.0.0.0:$p" ); done
+    for p in "${WIN_OUT_PORTS[@]}"; do args+=( --endpoint "127.0.0.1:$p" ); done
   else
     for p in "${WIN_OUT_PORTS[@]}"; do args+=( --endpoint "$WIN_IP:$p" ); done
   fi
