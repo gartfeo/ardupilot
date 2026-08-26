@@ -1577,7 +1577,10 @@ void SIM::sim_state_send(mavlink_channel_t chan) const
             state.speedE,
             state.speedD,
 	        (int32_t)(state.latitude*1.0e7),
-            (int32_t)(state.longitude*1.0e7));
+            (int32_t)(state.longitude*1.0e7),
+            // navlink extension: physics-state sample time (the FDM
+            // stamp the scheduler clock is stopped to), NOT send time
+            state.timestamp_us);
 }
 
 #if HAL_LOGGING_ENABLED
