@@ -845,6 +845,11 @@ void Aircraft::update_dynamics(const Vector3f &rot_accel)
     sitl->models.slung_payload_sim.update(get_position_relhome(), velocity_ef, accel_earth, wind_ef);
 #endif
 
+    // update the true-CPA tracker
+#if AP_SIM_CPA_ENABLED
+    sitl->models.cpa_sim.update(position, origin, time_now_us);
+#endif
+
     // allow for changes in physics step
     adjust_frame_time(constrain_float(sitl->loop_rate_hz, rate_hz-1, rate_hz+1));
 }

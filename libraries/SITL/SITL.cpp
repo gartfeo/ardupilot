@@ -1500,6 +1500,12 @@ const AP_Param::GroupInfo SIM::ModelParm::var_info[] = {
     AP_SUBGROUPPTR(flightaxis_ptr, "RFL_", 5, SIM::ModelParm, FlightAxis),
 #endif
 
+#if AP_SIM_CPA_ENABLED
+    // @Group: CPA_
+    // @Path: ./SIM_CPA.cpp
+    AP_SUBGROUPINFO(cpa_sim, "CPA_", 6, SIM::ModelParm, CPASim),
+#endif
+
     AP_GROUPEND
 };
     
