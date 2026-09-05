@@ -72,6 +72,12 @@
 #endif
 #define GPS_BAUD_TIME_MS 1200
 #define GPS_TIMEOUT_MS 4000u
+// Lag reported for an auto-detected receiver that has not been found yet.
+// Callers size delay buffers from this answer and cannot resize once the
+// driver reports its real lag, so hand them the largest delay the EKF
+// accepts rather than a mid-range guess: u-blox alone reports 0.22s until it
+// has identified the hardware generation.
+#define GPS_UNDETECTED_LAG_SEC 0.25f
 
 extern const AP_HAL::HAL &hal;
 
@@ -1714,6 +1720,7 @@ bool AP_GPS::get_lag(uint8_t instance, float &lag_sec) const
             lag_sec = 0.0f;
             return true;
         }
+        lag_sec = GPS_UNDETECTED_LAG_SEC;
         return type == GPS_TYPE_AUTO;
     } else {
         // the user has not specified a delay so we determine it from the GPS type
