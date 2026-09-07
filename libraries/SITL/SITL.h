@@ -196,6 +196,14 @@ public:
     AP_Float drift_speed; // degrees/second/minute
     AP_Float drift_time;  // period in minutes
     AP_Float engine_mul;  // engine multiplier
+
+    // Airframe disturbance noise. Aircraft::add_noise perturbs the model's
+    // OWN gyro and accel_body by these amplitudes scaled by |throttle|, so
+    // this alters simulated TRUTH, not a sensor reading. They were const
+    // members in SIM_Aircraft.h; the defaults keep that behaviour, and 0
+    // removes the term so a bench can fly noise-free dynamics.
+    AP_Float dyn_gyro_noise;   // in degrees/second
+    AP_Float dyn_accel_noise;  // in m/s/s
     AP_Int8  engine_fail; // engine servo to fail (0-7)
 
     AP_Float gps_noise[2]; // amplitude of the gps altitude error
@@ -551,6 +559,12 @@ public:
 #endif
 
     // IMU control parameters
+    // Baseline sensor noise, added on EVERY sample regardless of throttle.
+    // These were hard-coded literals in AP_InertialSensor_SITL; the defaults
+    // keep that behaviour, and 0 removes the term so a bench can isolate the
+    // vehicle from sensor noise entirely.
+    AP_Float gyro_noise_min;   // in degrees/second
+    AP_Float accel_noise_min;  // in m/s/s
     AP_Float gyro_noise[INS_MAX_INSTANCES];  // in degrees/second
     AP_Vector3f gyro_scale[INS_MAX_INSTANCES];  // percentage
     AP_Vector3f gyro_bias[INS_MAX_INSTANCES]; // in rad/s
@@ -598,6 +612,65 @@ public:
      */
     bool set_pose(uint8_t instance, const Location &loc, const Quaternion &quat,
                   const Vector3f &velocity_ef, const Vector3f &gyro_rads);
+
+    /*
+      SIM_NOISE_OFF: one switch over every noise source on this object.
+
+      A SET bit DISABLES that category, so the default of 0 is exactly the
+      behaviour without this feature, and a category added later stays
+      enabled for an aircraft that already has a value stored.
+
+      Intended for a bench that wants to isolate a control law from injected
+      randomness and then reintroduce it one calibrated source at a time.
+     */
+    enum NoiseCategory : uint8_t {
+        NOISE_IMU         = 0,   // accel/gyro sensor noise, incl. the floor
+        NOISE_AIRFRAME    = 1,   // Aircraft::add_noise, perturbs TRUTH
+        NOISE_VIBRATION   = 2,   // IMU vibration, fixed-frequency and motor
+        NOISE_GYRO_DRIFT  = 3,
+        NOISE_BARO        = 4,   // noise, drift and glitch, all instances
+        NOISE_GPS         = 5,   // noise, glitch, velocity error, jam, byte loss
+        NOISE_COMPASS     = 6,
+        NOISE_AIRSPEED    = 7,
+        NOISE_RANGEFINDER = 8,   // sonar noise and glitch
+        NOISE_FLOW        = 9,
+        NOISE_WIND        = 10,  // turbulence only; SIM_WIND_SPD is not noise
+        NOISE_TIMING      = 11,  // loop-time jitter, UART byte loss
+        NOISE_VICON       = 12,
+    };
+    AP_Int32 noise_off;
+
+    // Re-reads noise_off and applies it when it has changed. Cheap and safe
+    // to call every frame; returns immediately while nothing has changed,
+    // and never writes a parameter at all while noise_off stays 0.
+    void apply_noise_off(void);
+
+private:
+    // The value a category had when its bit was set, so clearing the bit
+    // restores that category rather than leaving it at zero. Captured at the
+    // transition rather than at first use, so a value configured while the
+    // bit was clear is the one that comes back.
+    static const uint8_t NOISE_SLOTS = 128;
+    float noise_backup[NOISE_SLOTS];
+    uint8_t noise_slot;
+    // SIM has a user-provided constructor, so this needs an in-class
+    // initialiser -- without it the first apply_noise_off() would compare
+    // against an indeterminate mask.
+    int32_t noise_off_applied = 0;
+    // The mask the current walk is applying. Read once by apply_noise_off()
+    // so a GCS write landing mid-walk cannot make the gates disagree with
+    // what noise_off_applied then records.
+    int32_t noise_off_wanted = 0;
+
+    // Walks every gated parameter. This list IS the definition of "all
+    // noise": a source missing from it is a source SIM_NOISE_OFF does not
+    // turn off. See apply_noise_off() for the scope this does NOT cover.
+    void visit_noise(void);
+    int8_t noise_transition(uint8_t category) const;
+    void gate(AP_Float &p, uint8_t category);
+    void gate(AP_Int8 &p, uint8_t category);
+    void gate(AP_Int16 &p, uint8_t category);
+    void gate(AP_Vector3f &p, uint8_t category);
 };
 
 } // namespace SITL

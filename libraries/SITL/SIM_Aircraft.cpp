@@ -317,6 +317,8 @@ void Aircraft::sync_frame_time(void)
 /* add noise based on throttle level (from 0..1) */
 void Aircraft::add_noise(float throttle)
 {
+    const float gyro_noise = radians(sitl->dyn_gyro_noise.get());
+    const float accel_noise = sitl->dyn_accel_noise.get();
     gyro += Vector3f(rand_normal(0, 1),
                      rand_normal(0, 1),
                      rand_normal(0, 1)) * gyro_noise * fabsf(throttle);
@@ -461,6 +463,10 @@ void Aircraft::fill_fdm(struct sitl_fdm &fdm)
         set_speedup(sitl->speedup);
         last_speedup = sitl->speedup;
     }
+
+    // Applies SIM_NOISE_OFF when it has changed. Returns immediately
+    // otherwise, and touches nothing at all while it stays 0.
+    sitl->apply_noise_off();
 
 #if HAL_LOGGING_ENABLED
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
