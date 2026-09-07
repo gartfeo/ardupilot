@@ -82,7 +82,7 @@ ssize_t GPS::write_to_autopilot(const char *p, size_t size) const
         return -1;
     }
 
-    const float byteloss = _sitl->gps_byteloss[instance];
+    const float byteloss = _sitl->gps_byteloss(instance);
 
     // shortcut if we're not doing byteloss:
     if (!is_positive(byteloss)) {
@@ -364,10 +364,10 @@ void GPS::update()
     d.pitch_deg = _sitl->state.pitchDeg;
 
     // add an altitude error controlled by a slow sine wave
-    d.altitude = altitude + _sitl->gps_noise[idx] * sinf(now_ms * 0.0005f) + _sitl->gps_alt_offset[idx];
+    d.altitude = altitude + _sitl->gps_noise(idx) * sinf(now_ms * 0.0005f) + _sitl->gps_alt_offset[idx];
 
     // Add offset to c.g. velocity to get velocity at antenna and add simulated error
-    Vector3f velErrorNED = _sitl->gps_vel_err[idx];
+    Vector3f velErrorNED = _sitl->gps_vel_err(idx);
     d.speedN = speedN + (velErrorNED.x * rand_float());
     d.speedE = speedE + (velErrorNED.y * rand_float());
     d.speedD = speedD + (velErrorNED.z * rand_float());
@@ -377,11 +377,11 @@ void GPS::update()
     // fill in accuracies
     d.horizontal_acc = _sitl->gps_accuracy[idx];
     d.vertical_acc = _sitl->gps_accuracy[idx];
-    d.speed_acc = _sitl->gps_vel_err[instance].get().xy().length();
+    d.speed_acc = _sitl->gps_vel_err(instance).xy().length();
 
-    if (_sitl->gps_drift_alt[idx] > 0) {
+    if (_sitl->gps_drift_alt(idx) > 0) {
         // add slow altitude drift controlled by a slow sine wave
-        d.altitude += _sitl->gps_drift_alt[idx]*sinf(now_ms*0.001f*0.02f);
+        d.altitude += _sitl->gps_drift_alt(idx)*sinf(now_ms*0.001f*0.02f);
     }
 
     // correct the latitude, longitude, height and NED velocity for the offset between
@@ -422,12 +422,12 @@ void GPS::update()
 
     // Applying GPS glitch
     // Using first gps glitch
-    Vector3f glitch_offsets = _sitl->gps_glitch[idx];
+    Vector3f glitch_offsets = _sitl->gps_glitch(idx);
     d.latitude += glitch_offsets.x;
     d.longitude += glitch_offsets.y;
     d.altitude += glitch_offsets.z;
 
-        if (_sitl->gps_jam[idx] == 1) {
+        if (_sitl->gps_jam(idx) == 1) {
             simulate_jamming(d);
         }
 

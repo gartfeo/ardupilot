@@ -25,8 +25,8 @@ float SITL_State::_sonar_pin_voltage() const
 {
     // Use glitch defines as the probablility between 0-1 that any
     // given sonar sample will read as max distance
-    if (!is_zero(_sitl->sonar_glitch) &&
-        _sitl->sonar_glitch >= (rand_float() + 1.0f) / 2.0f) {
+    if (!is_zero(_sitl->sonar_glitch()) &&
+        _sitl->sonar_glitch() >= (rand_float() + 1.0f) / 2.0f) {
         // glitched
         return 5.0f;
     }

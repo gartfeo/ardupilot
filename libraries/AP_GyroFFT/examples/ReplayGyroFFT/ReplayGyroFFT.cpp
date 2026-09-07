@@ -114,10 +114,10 @@ void setup()
 
     const bool generate = false;
     if (generate) {
-        sitl.vibe_freq.set(Vector3f(250,250,250));  // SIM_VIB_FREQ
-        sitl.drift_speed.set(0);    // SIM_DRIFT_SPEED
-        sitl.drift_time.set(0);     // SIM_DRIFT_TIME
-        sitl.gyro_noise[0].set(20); // SIM_GYR1_RND
+        sitl.vibe_freq_param.set(Vector3f(250,250,250));  // SIM_VIB_FREQ
+        sitl.drift_speed_param.set(0);    // SIM_DRIFT_SPEED
+        sitl.drift_time_param.set(0);     // SIM_DRIFT_TIME
+        sitl.gyro_noise_param[0].set(20); // SIM_GYR1_RND
     } else {
         sitl.speedup.set(100);      // SIM_SPEEDUP
         sitl.gyro_file_rw.set(SITL::SIM::INSFileMode::INS_FILE_READ_STOP_ON_EOF);   // SIM_GYR_FILE_RW

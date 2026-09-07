@@ -68,13 +68,13 @@ void AP_Baro_SITL::_timer()
 
     const auto drift_delta_t_ms = now - last_drift_delta_t_ms;
     last_drift_delta_t_ms = now;
-    total_alt_drift += _sitl->baro[_instance].drift * drift_delta_t_ms * 0.001f;
+    total_alt_drift += _sitl->baro_drift(_instance) * drift_delta_t_ms * 0.001f;
 
     sim_alt += total_alt_drift;
-    sim_alt += _sitl->baro[_instance].noise * rand_float();
+    sim_alt += _sitl->baro_noise(_instance) * rand_float();
 
     // add baro glitch
-    sim_alt += _sitl->baro[_instance].glitch;
+    sim_alt += _sitl->baro_glitch(_instance);
 
     // add delay
     uint32_t best_time_delta = 200;  // initialise large time representing buffer entry closest to current time - delay.

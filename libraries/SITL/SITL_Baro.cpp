@@ -10,13 +10,13 @@ const AP_Param::GroupInfo SIM::BaroParm::var_info[] = {
     // @Description: Barometer noise in height
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("RND",      1, SIM::BaroParm,  noise, 0.2f),
+    AP_GROUPINFO("RND",      1, SIM::BaroParm,  noise_param, 0.2f),
     // @Param: DRIFT
     // @DisplayName: Barometer altitude drift
     // @Description: Barometer altitude drifts at this rate
     // @Units: m/s
     // @User: Advanced
-    AP_GROUPINFO("DRIFT",    2, SIM::BaroParm,  drift, 0),
+    AP_GROUPINFO("DRIFT",    2, SIM::BaroParm,  drift_param, 0),
     // @Param: DISABLE
     // @DisplayName: Barometer disable
     // @Description: Disable barometer in SITL
@@ -28,7 +28,7 @@ const AP_Param::GroupInfo SIM::BaroParm::var_info[] = {
     // @Description: Barometer glitch height in SITL
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("GLITCH",   4, SIM::BaroParm,  glitch, 0),
+    AP_GROUPINFO("GLITCH",   4, SIM::BaroParm,  glitch_param, 0),
     // @Param: FREEZE
     // @DisplayName: Barometer freeze
     // @Description: Freeze barometer to last recorded altitude

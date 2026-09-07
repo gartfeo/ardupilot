@@ -70,11 +70,11 @@ const AP_Param::GroupInfo SIM::var_info[] = {
     // @Param: DRIFT_SPEED
     // @DisplayName: Gyro drift speed
     // @Description: Gyro drift rate of change in degrees/second/minute
-    AP_GROUPINFO("DRIFT_SPEED",    5, SIM,  drift_speed, 0.05f),
+    AP_GROUPINFO("DRIFT_SPEED",    5, SIM,  drift_speed_param, 0.05f),
     // @Param: DRIFT_TIME
     // @DisplayName: Gyro drift time
     // @Description: Gyro drift duration of one full drift cycle (period in minutes)
-    AP_GROUPINFO("DRIFT_TIME",     6, SIM,  drift_time,  5),
+    AP_GROUPINFO("DRIFT_TIME",     6, SIM,  drift_time_param,  5),
     // @Param: ENGINE_MUL
     // @DisplayName: Engine failure thrust scaler
     // @Description: Thrust from Motors in SIM_ENGINE_FAIL will be multiplied by this factor
@@ -98,7 +98,7 @@ const AP_Param::GroupInfo SIM::var_info[] = {
     // @Description: Allows you to emulate random wind variations in sim
     // @Units: m/s
     // @User: Advanced
-    AP_GROUPINFO("WIND_TURB",     11, SIM,  wind_turbulance,  0),
+    AP_GROUPINFO("WIND_TURB",     11, SIM,  wind_turbulance_param,  0),
 
     // @Param: WIND_TC
     // @DisplayName: Wind variation time constant
@@ -132,12 +132,12 @@ const AP_Param::GroupInfo SIM::var_info[] = {
     // @Description: Probablility a sonar glitch would happen
     // @Range: 0 1
     // @User: Advanced
-    AP_GROUPINFO("SONAR_GLITCH",  23, SIM,  sonar_glitch, 0),
+    AP_GROUPINFO("SONAR_GLITCH",  23, SIM,  sonar_glitch_param, 0),
     // @Param: SONAR_RND
     // @DisplayName: Sonar noise factor
     // @Description: Scaling factor for simulated sonar noise
     // @User: Advanced
-    AP_GROUPINFO("SONAR_RND",     24, SIM,  sonar_noise, 0),
+    AP_GROUPINFO("SONAR_RND",     24, SIM,  sonar_noise_param, 0),
     // @Param: RC_FAIL
     // @DisplayName: Simulated RC signal failure
     // @Description: Allows you to emulate rc failures in sim
@@ -328,7 +328,7 @@ const AP_Param::GroupInfo SIM::var_info2[] = {
     AP_GROUPINFO("WOW_PIN",     25, SIM,  wow_pin, -1),
 
     // vibration frequencies on each axis
-    AP_GROUPINFO("VIB_FREQ",   26, SIM,  vibe_freq, 0),
+    AP_GROUPINFO("VIB_FREQ",   26, SIM,  vibe_freq_param, 0),
 
     // @Path: ./SIM_Parachute.cpp
     AP_SUBGROUPINFO(parachute_sim, "PARA_", 27, SIM, Parachute),
@@ -367,7 +367,7 @@ const AP_Param::GroupInfo SIM::var_info2[] = {
     // @DisplayName: Opflow noise
     // @Description: Optical Flow sensor measurement noise
     // @Units: rad/s
-    AP_GROUPINFO("FLOW_RND",   34, SIM,  flow_noise,  0.05f),
+    AP_GROUPINFO("FLOW_RND",   34, SIM,  flow_noise_param,  0.05f),
 
     // @Param: TWIST_X
     // @DisplayName: Twist x
@@ -492,7 +492,7 @@ const AP_Param::GroupInfo SIM::var_info2[] = {
     // @DisplayName: Max motor vibration frequency
     // @Description: Max frequency to use as baseline for adding motor noise for the gyros and accels
     // @Units: Hz
-    AP_GROUPINFO("VIB_MOT_MAX", 61, SIM,  vibe_motor, 0.0f),
+    AP_GROUPINFO("VIB_MOT_MAX", 61, SIM,  vibe_motor_param, 0.0f),
     // @Param: INS_THR_MIN
     // @DisplayName: Minimum throttle INS noise
     // @Description: Minimum throttle for simulated ins noise
@@ -500,7 +500,7 @@ const AP_Param::GroupInfo SIM::var_info2[] = {
     // @Param: VIB_MOT_MULT
     // @DisplayName: Vibration motor scale
     // @Description: Amplitude scaling of motor noise relative to gyro/accel noise
-    AP_GROUPINFO("VIB_MOT_MULT", 63, SIM,  vibe_motor_scale, 1.0f),
+    AP_GROUPINFO("VIB_MOT_MULT", 63, SIM,  vibe_motor_scale_param, 1.0f),
 
 
     AP_GROUPEND
@@ -567,7 +567,7 @@ const AP_Param::GroupInfo SIM::var_info3[] = {
     // @Description: SITL vicon position glitch Down
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("VICON_GLIT",    16, SIM,  vicon_glitch, 0),
+    AP_GROUPINFO("VICON_GLIT",    16, SIM,  vicon_glitch_param, 0),
 
     // @Param: VICON_FAIL
     // @DisplayName: SITL vicon failure
@@ -616,7 +616,7 @@ const AP_Param::GroupInfo SIM::var_info3[] = {
     // @Description: SITL vicon velocity glitch Down
     // @Units: m/s
     // @User: Advanced
-    AP_GROUPINFO("VICON_VGLI",    21, SIM,  vicon_vel_glitch, 0),
+    AP_GROUPINFO("VICON_VGLI",    21, SIM,  vicon_vel_glitch_param, 0),
 
     // @Param: RATE_HZ
     // @DisplayName: Loop rate
@@ -665,7 +665,7 @@ const AP_Param::GroupInfo SIM::var_info3[] = {
     // @Description: Upper limit of random jitter in loop time
     // @Units: us
     // @User: Advanced
-    AP_GROUPINFO("TIME_JITTER",  37, SIM,  loop_time_jitter_us, 0),
+    AP_GROUPINFO("TIME_JITTER",  37, SIM,  loop_time_jitter_us_param, 0),
 
     // @Param: ESC_TELEM
     // @DisplayName: Simulated ESC Telemetry
@@ -684,7 +684,7 @@ const AP_Param::GroupInfo SIM::var_info3[] = {
     // @Description: Sets percentage of outgoing byte loss on UARTs
     // @Units: %
     // @User: Advanced
-    AP_GROUPINFO("UART_LOSS", 42, SIM,  uart_byte_loss_pct, 0),
+    AP_GROUPINFO("UART_LOSS", 42, SIM,  uart_byte_loss_pct_param, 0),
 
     // @Group: ARSPD_
     // @Path: ./SITL_Airspeed.cpp
@@ -721,18 +721,18 @@ const AP_Param::GroupInfo SIM::var_info3[] = {
     // @Description: Gaussian disturbance added to the simulated airframe's own body rates, scaled by absolute throttle. This perturbs simulated truth rather than a sensor reading, and is separate from the IMU noise set by SIM_GYR_RND_MIN and SIM_GYRn_RND. The default is the amplitude SITL has always applied; 0 removes it so a bench can fly noise-free dynamics.
     // @Units: deg/s
     // @User: Advanced
-    AP_GROUPINFO("DYN_GYR_RND",   55, SIM,  dyn_gyro_noise, 0.1),
+    AP_GROUPINFO("DYN_GYR_RND",   55, SIM,  dyn_gyro_noise_param, 0.1),
 
     // @Param: DYN_ACC_RND
     // @DisplayName: Airframe accel disturbance
     // @Description: Gaussian disturbance added to the simulated airframe's own body accelerations, scaled by absolute throttle. This perturbs simulated truth rather than a sensor reading, and is separate from the IMU noise set by SIM_ACC_RND_MIN and SIM_ACCn_RND. The default is the amplitude SITL has always applied; 0 removes it so a bench can fly noise-free dynamics.
     // @Units: m/s/s
     // @User: Advanced
-    AP_GROUPINFO("DYN_ACC_RND",   56, SIM,  dyn_accel_noise, 0.3),
+    AP_GROUPINFO("DYN_ACC_RND",   56, SIM,  dyn_accel_noise_param, 0.3),
 
     // @Param: NOISE_OFF
     // @DisplayName: Disable simulated noise by category
-    // @Description: Bitmask of noise categories to disable. A SET bit turns that category OFF, so 0 leaves every source at its own parameter's value and behaves as though this parameter did not exist. Intended for a bench isolating a control law from injected randomness, which can then reintroduce one calibrated category at a time. Values are captured when a bit is set and restored when it is cleared. Three limits: this applies when the mask CHANGES rather than continuously, so a value written afterwards stays in force; it cannot apply until parameters have loaded, so anything calibrated during vehicle setup sees the configured noise; and it only ever calls set(), never set_and_save(), which means this code never asks for a save but does not prevent a save requested elsewhere from storing a gated value.
+    // @Description: Bitmask of noise categories to disable. A SET bit turns that category OFF, so 0 leaves every source at its own parameter's value and behaves as though this parameter did not exist. Intended for a bench isolating a control law from injected randomness, which can then reintroduce one calibrated category at a time. Suppression is applied where the value is read, so the category's own parameters keep and report whatever you configured, are never rewritten, and take effect again the moment the bit is cleared. One coupling to know: disabling vibration alone zeroes SIM_VIB_FREQ and SIM_VIB_MOT_MAX, which is the condition for adding gyro background noise at the IMU amplitude instead, so disable IMU too for a quiet gyro.
     // @Bitmask: 0:IMU,1:Airframe,2:Vibration,3:GyroDrift,4:Baro,5:GPS,6:Compass,7:Airspeed,8:Rangefinder,9:OpticalFlow,10:WindTurbulence,11:Timing,12:Vicon
     // @User: Advanced
     AP_GROUPINFO("NOISE_OFF",     57, SIM,  noise_off, 0),
@@ -771,7 +771,7 @@ const AP_Param::GroupInfo SIM::var_gps[] = {
     // @Description: Percent of bytes lost from GPS 1
     // @Units: %
     // @User: Advanced
-    AP_GROUPINFO("GPS_BYTELOSS",   4, SIM,  gps_byteloss[0],  0),
+    AP_GROUPINFO("GPS_BYTELOSS",   4, SIM,  gps_byteloss_param[0],  0),
     // @Param: GPS_NUMSATS
     // @DisplayName: GPS 1 Num Satellites
     // @Description: Number of satellites GPS 1 has in view
@@ -781,7 +781,7 @@ const AP_Param::GroupInfo SIM::var_gps[] = {
     // @Description: Glitch offsets of simulated GPS 1 sensor
     // @Vector3Parameter: 1
     // @User: Advanced
-    AP_GROUPINFO("GPS_GLITCH",     6, SIM,  gps_glitch[0],  0),
+    AP_GROUPINFO("GPS_GLITCH",     6, SIM,  gps_glitch_param[0],  0),
     // @Param: GPS_HZ
     // @DisplayName: GPS 1 Hz
     // @Description: GPS 1 Update rate
@@ -792,7 +792,7 @@ const AP_Param::GroupInfo SIM::var_gps[] = {
     // @Description: GPS 1 altitude drift error
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("GPS_DRIFTALT",   8, SIM,  gps_drift_alt[0], 0),
+    AP_GROUPINFO("GPS_DRIFTALT",   8, SIM,  gps_drift_alt_param[0], 0),
     // @Param: GPS_POS
     // @DisplayName: GPS 1 Position
     // @Description: GPS 1 antenna phase center position relative to the body frame origin
@@ -804,7 +804,7 @@ const AP_Param::GroupInfo SIM::var_gps[] = {
     // @Description: Amplitude of the GPS1 altitude error
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("GPS_NOISE",     10, SIM,  gps_noise[0], 0),
+    AP_GROUPINFO("GPS_NOISE",     10, SIM,  gps_noise_param[0], 0),
     // @Param: GPS_LOCKTIME
     // @DisplayName: GPS 1 Lock Time
     // @Description: Delay in seconds before GPS1 acquires lock
@@ -832,13 +832,13 @@ const AP_Param::GroupInfo SIM::var_gps[] = {
     // @Description: GPS 1 Velocity Error Offsets in NED
     // @Vector3Parameter: 1
     // @User: Advanced
-    AP_GROUPINFO("GPS_VERR",      15, SIM,  gps_vel_err[0], 0),
+    AP_GROUPINFO("GPS_VERR",      15, SIM,  gps_vel_err_param[0], 0),
     // @Param: GPS_JAM
     // @DisplayName: GPS jamming enable
     // @Description: Enable simulated GPS jamming
     // @User: Advanced
     // @Values: 0:Disabled, 1:Enabled
-    AP_GROUPINFO("GPS_JAM",       16, SIM,  gps_jam[0], 0),
+    AP_GROUPINFO("GPS_JAM",       16, SIM,  gps_jam_param[0], 0),
     // @Param: GPS2_DISABLE
     // @DisplayName: GPS 2 disable
     // @Description: Disables GPS 2
@@ -861,7 +861,7 @@ const AP_Param::GroupInfo SIM::var_gps[] = {
     // @Description: Percent of bytes lost from GPS 2
     // @Units: %
     // @User: Advanced
-    AP_GROUPINFO("GPS2_BYTELOS",  33, SIM,  gps_byteloss[1],  0),
+    AP_GROUPINFO("GPS2_BYTELOS",  33, SIM,  gps_byteloss_param[1],  0),
     // @Param: GPS2_NUMSATS
     // @DisplayName: GPS 2 Num Satellites
     // @Description: Number of satellites GPS 2 has in view
@@ -871,7 +871,7 @@ const AP_Param::GroupInfo SIM::var_gps[] = {
     // @Description: Glitch offsets of simulated GPS 2 sensor
     // @Vector3Parameter: 1
     // @User: Advanced
-    AP_GROUPINFO("GPS2_GLTCH",    35, SIM,  gps_glitch[1],  0),
+    AP_GROUPINFO("GPS2_GLTCH",    35, SIM,  gps_glitch_param[1],  0),
     // @Param: GPS2_HZ
     // @DisplayName: GPS 2 Hz
     // @Description: GPS 2 Update rate
@@ -882,7 +882,7 @@ const AP_Param::GroupInfo SIM::var_gps[] = {
     // @Description: GPS 2 altitude drift error
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("GPS2_DRFTALT",  37, SIM,  gps_drift_alt[1], 0),
+    AP_GROUPINFO("GPS2_DRFTALT",  37, SIM,  gps_drift_alt_param[1], 0),
     // @Param: GPS2_POS
     // @DisplayName: GPS 2 Position
     // @Description: GPS 2 antenna phase center position relative to the body frame origin
@@ -894,7 +894,7 @@ const AP_Param::GroupInfo SIM::var_gps[] = {
     // @Description: Amplitude of the GPS2 altitude error
     // @Units: m
     // @User: Advanced
-    AP_GROUPINFO("GPS2_NOISE",    39, SIM,  gps_noise[1], 0),
+    AP_GROUPINFO("GPS2_NOISE",    39, SIM,  gps_noise_param[1], 0),
     // @Param: GPS2_LCKTIME
     // @DisplayName: GPS 2 Lock Time
     // @Description: Delay in seconds before GPS2 acquires lock
@@ -922,7 +922,7 @@ const AP_Param::GroupInfo SIM::var_gps[] = {
     // @Description: GPS 2 Velocity Error Offsets in NED
     // @Vector3Parameter: 1
     // @User: Advanced
-    AP_GROUPINFO("GPS2_VERR",     44, SIM,  gps_vel_err[1], 0),
+    AP_GROUPINFO("GPS2_VERR",     44, SIM,  gps_vel_err_param[1], 0),
 
     // @Param: INIT_LAT_OFS
     // @DisplayName: Initial Latitude Offset
@@ -947,7 +947,7 @@ const AP_Param::GroupInfo SIM::var_gps[] = {
     // @Description: Enable simulated GPS jamming
     // @User: Advanced
     // @Values: 0:Disabled, 1:Enabled
-    AP_GROUPINFO("GPS2_JAM",      49, SIM,  gps_jam[1], 0),
+    AP_GROUPINFO("GPS2_JAM",      49, SIM,  gps_jam_param[1], 0),
 
     AP_GROUPEND
 };
@@ -959,7 +959,7 @@ const AP_Param::GroupInfo SIM::var_mag[] = {
     // @DisplayName: Mag motor noise factor
     // @Description: Scaling factor for simulated vibration from motors
     // @User: Advanced
-    AP_GROUPINFO("MAG_RND",        1, SIM,  mag_noise,   0),
+    AP_GROUPINFO("MAG_RND",        1, SIM,  mag_noise_param,   0),
     AP_GROUPINFO("MAG_MOT",        2, SIM,  mag_mot, 0),
     // @Param: MAG_DELAY
     // @DisplayName: Mag measurement delay
@@ -1158,48 +1158,48 @@ const AP_Param::GroupInfo SIM::var_ins[] = {
     // @Description: Gyro noise added on every sample whatever the throttle, separate from the motor vibration set by SIM_GYRn_RND. The default is the sensor noise floor SITL has always applied; 0 removes it so a bench can isolate the vehicle from gyro noise.
     // @Units: deg/s
     // @User: Advanced
-    AP_GROUPINFO("GYR_RND_MIN",  50, SIM, gyro_noise_min, 0.04),
+    AP_GROUPINFO("GYR_RND_MIN",  50, SIM, gyro_noise_min_param, 0.04),
 
     // @Param: ACC_RND_MIN
     // @DisplayName: Accel baseline noise
     // @Description: Accelerometer noise added on every sample whatever the throttle, separate from the motor vibration set by SIM_ACCn_RND. The default is the sensor noise floor SITL has always applied; 0 removes it so a bench can isolate the vehicle from accelerometer noise.
     // @Units: m/s/s
     // @User: Advanced
-    AP_GROUPINFO("ACC_RND_MIN",  51, SIM, accel_noise_min, 0.01),
+    AP_GROUPINFO("ACC_RND_MIN",  51, SIM, accel_noise_min_param, 0.01),
 
     // @Param: GYR1_RND
     // @DisplayName: Gyro 1 motor noise factor
     // @Description: scaling factor for simulated vibration from motors
     // @User: Advanced
-    AP_GROUPINFO("GYR1_RND",      8, SIM, gyro_noise[0],  0),
+    AP_GROUPINFO("GYR1_RND",      8, SIM, gyro_noise_param[0],  0),
 #if INS_MAX_INSTANCES > 1
     // @Param: GYR2_RND
     // @DisplayName: Gyro 2 motor noise factor
     // @CopyFieldsFrom: SIM_GYR1_RND
-    AP_GROUPINFO("GYR2_RND",      9, SIM, gyro_noise[1],  0),
+    AP_GROUPINFO("GYR2_RND",      9, SIM, gyro_noise_param[1],  0),
 #endif
 #if INS_MAX_INSTANCES > 2
     // @Param: GYR3_RND
     // @DisplayName: Gyro 3 motor noise factor
     // @CopyFieldsFrom: SIM_GYR1_RND
-    AP_GROUPINFO("GYR3_RND",     10, SIM, gyro_noise[2],  0),
+    AP_GROUPINFO("GYR3_RND",     10, SIM, gyro_noise_param[2],  0),
 #endif
     // @Param: ACC1_RND
     // @DisplayName: Accel 1 motor noise factor
     // @Description: scaling factor for simulated vibration from motors
     // @User: Advanced
-    AP_GROUPINFO("ACC1_RND",     11, SIM, accel_noise[0], 0),
+    AP_GROUPINFO("ACC1_RND",     11, SIM, accel_noise_param[0], 0),
 #if INS_MAX_INSTANCES > 1
     // @Param: ACC2_RND
     // @DisplayName: Accel 2 motor noise factor
     // @CopyFieldsFrom: SIM_ACC1_RND
-    AP_GROUPINFO("ACC2_RND",     12, SIM, accel_noise[1], 0),
+    AP_GROUPINFO("ACC2_RND",     12, SIM, accel_noise_param[1], 0),
 #endif
 #if INS_MAX_INSTANCES > 2
     // @Param: ACC3_RND
     // @DisplayName: Accel 3 motor noise factor
     // @CopyFieldsFrom: SIM_ACC1_RND
-    AP_GROUPINFO("ACC3_RND",     13, SIM, accel_noise[2], 0),
+    AP_GROUPINFO("ACC3_RND",     13, SIM, accel_noise_param[2], 0),
 #endif
     // @Param: GYR1_SCALE
     // @DisplayName: Gyro 1 scaling factor
@@ -1387,12 +1387,12 @@ const AP_Param::GroupInfo SIM::var_ins[] = {
     // @Param: ACC4_RND
     // @DisplayName: Accel 4 motor noise factor
     // @CopyFieldsFrom: SIM_ACC1_RND
-    AP_GROUPINFO("ACC4_RND",     37, SIM, accel_noise[3], 0),
+    AP_GROUPINFO("ACC4_RND",     37, SIM, accel_noise_param[3], 0),
 
     // @Param: GYR4_RND
     // @DisplayName: Gyro 4 motor noise factor
     // @CopyFieldsFrom: SIM_GYR1_RND
-    AP_GROUPINFO("GYR4_RND",     38, SIM, gyro_noise[3],  0),
+    AP_GROUPINFO("GYR4_RND",     38, SIM, gyro_noise_param[3],  0),
 
     // @Param: ACC4_BIAS
     // @DisplayName: Accel 4 bias
@@ -1443,12 +1443,12 @@ const AP_Param::GroupInfo SIM::var_ins[] = {
     // @Param: ACC5_RND
     // @DisplayName: Accel 5 motor noise factor
     // @CopyFieldsFrom: SIM_ACC1_RND
-    AP_GROUPINFO("ACC5_RND",     44, SIM, accel_noise[4], 0),
+    AP_GROUPINFO("ACC5_RND",     44, SIM, accel_noise_param[4], 0),
 
     // @Param: GYR5_RND
     // @DisplayName: Gyro 5 motor noise factor
     // @CopyFieldsFrom: SIM_GYR1_RND
-    AP_GROUPINFO("GYR5_RND",     45, SIM, gyro_noise[4],  0),
+    AP_GROUPINFO("GYR5_RND",     45, SIM, gyro_noise_param[4],  0),
 
     // @Param: ACC5_BIAS
     // @DisplayName: Accel 5 bias
@@ -1812,217 +1812,6 @@ float SIM::measure_distance_at_angle_bf(const Location &location, float angle) c
 
     // ::fprintf(stderr, "Distance @%f = %fm\n", angle, min_dist_cm*0.01f);
     return min_dist_cm * 0.01f;
-}
-
-/*
-  SIM_NOISE_OFF -- see the NoiseCategory enum in SITL.h.
- */
-
-/*
-  Each gate() answers one question: did THIS category's bit just change?
-
-  Nothing else is touched. A parameter whose category did not change keeps
-  whatever value it currently has, including one written since the last
-  change -- rewriting the whole set on every change is what made toggling one
-  category discard a calibrated value in another.
-
-  Reaching NOISE_SLOTS means the list outgrew the array, which is a
-  programming error rather than a user misconfiguration, so it panics instead
-  of silently leaving the parameters past the cap ungated.
- */
-#define NOISE_SLOTS_CHECK(n)                                            \
-    if (noise_slot + (n) > NOISE_SLOTS) {                               \
-        AP_HAL::panic("SIM_NOISE_OFF: NOISE_SLOTS too small");           \
-    }
-
-// 0 -> the category is unchanged, 1 -> it was just switched off,
-// -1 -> it was just switched back on.
-int8_t SIM::noise_transition(uint8_t category) const
-{
-    const uint32_t bit = 1U << category;
-    const bool now_off = (noise_off_wanted & bit) != 0;
-    const bool was_off = (noise_off_applied & bit) != 0;
-    if (now_off == was_off) {
-        return 0;
-    }
-    return now_off ? 1 : -1;
-}
-
-void SIM::gate(AP_Float &p, uint8_t category)
-{
-    NOISE_SLOTS_CHECK(1);
-    const int8_t change = noise_transition(category);
-    if (change > 0) {
-        noise_backup[noise_slot] = p.get();
-        p.set(0.0f);
-    } else if (change < 0) {
-        p.set(noise_backup[noise_slot]);
-    }
-    noise_slot++;
-}
-
-void SIM::gate(AP_Int8 &p, uint8_t category)
-{
-    NOISE_SLOTS_CHECK(1);
-    const int8_t change = noise_transition(category);
-    if (change > 0) {
-        noise_backup[noise_slot] = p.get();
-        p.set(0);
-    } else if (change < 0) {
-        p.set(int8_t(noise_backup[noise_slot]));
-    }
-    noise_slot++;
-}
-
-void SIM::gate(AP_Int16 &p, uint8_t category)
-{
-    NOISE_SLOTS_CHECK(1);
-    const int8_t change = noise_transition(category);
-    if (change > 0) {
-        noise_backup[noise_slot] = p.get();
-        p.set(0);
-    } else if (change < 0) {
-        p.set(int16_t(noise_backup[noise_slot]));
-    }
-    noise_slot++;
-}
-
-void SIM::gate(AP_Vector3f &p, uint8_t category)
-{
-    NOISE_SLOTS_CHECK(3);
-    const int8_t change = noise_transition(category);
-    if (change > 0) {
-        const Vector3f v = p.get();
-        noise_backup[noise_slot] = v.x;
-        noise_backup[noise_slot+1] = v.y;
-        noise_backup[noise_slot+2] = v.z;
-        p.set(Vector3f{});
-    } else if (change < 0) {
-        p.set(Vector3f{noise_backup[noise_slot],
-                       noise_backup[noise_slot+1],
-                       noise_backup[noise_slot+2]});
-    }
-    noise_slot += 3;
-}
-
-/*
-  Every noise-bearing parameter on this object, in one place.
-
-  Deliberately absent: ins_noise_throttle_min is the THRESHOLD the IMU
-  vibration branch compares throttle against, not an amplitude -- zeroing it
-  would apply motor noise more often, not less. SIM_WIND_SPD is a modelled
-  condition rather than noise, so only its turbulence term is gated.
- */
-void SIM::visit_noise(void)
-{
-    noise_slot = 0;
-
-    for (uint8_t i=0; i<INS_MAX_INSTANCES; i++) {
-        gate(gyro_noise[i], NOISE_IMU);
-        gate(accel_noise[i], NOISE_IMU);
-    }
-    gate(gyro_noise_min, NOISE_IMU);
-    gate(accel_noise_min, NOISE_IMU);
-
-    gate(dyn_gyro_noise, NOISE_AIRFRAME);
-    gate(dyn_accel_noise, NOISE_AIRFRAME);
-
-    gate(vibe_freq, NOISE_VIBRATION);
-    gate(vibe_motor, NOISE_VIBRATION);
-    gate(vibe_motor_scale, NOISE_VIBRATION);
-
-    gate(drift_speed, NOISE_GYRO_DRIFT);
-    gate(drift_time, NOISE_GYRO_DRIFT);
-
-    for (uint8_t i=0; i<BARO_MAX_INSTANCES; i++) {
-        gate(baro[i].noise, NOISE_BARO);
-        gate(baro[i].drift, NOISE_BARO);
-        gate(baro[i].glitch, NOISE_BARO);
-    }
-
-    for (uint8_t i=0; i<2; i++) {
-        gate(gps_noise[i], NOISE_GPS);
-        gate(gps_byteloss[i], NOISE_GPS);
-        gate(gps_glitch[i], NOISE_GPS);
-        gate(gps_drift_alt[i], NOISE_GPS);
-        gate(gps_vel_err[i], NOISE_GPS);
-        gate(gps_jam[i], NOISE_GPS);
-    }
-
-    gate(mag_noise, NOISE_COMPASS);
-
-    for (uint8_t i=0; i<AIRSPEED_MAX_SENSORS; i++) {
-        gate(airspeed[i].noise, NOISE_AIRSPEED);
-    }
-
-    gate(sonar_noise, NOISE_RANGEFINDER);
-    gate(sonar_glitch, NOISE_RANGEFINDER);
-
-    gate(flow_noise, NOISE_FLOW);
-
-    gate(wind_turbulance, NOISE_WIND);
-
-    gate(loop_time_jitter_us, NOISE_TIMING);
-    gate(uart_byte_loss_pct, NOISE_TIMING);
-
-    gate(vicon_glitch, NOISE_VICON);
-    gate(vicon_vel_glitch, NOISE_VICON);
-}
-
-/*
-  Applies SIM_NOISE_OFF when it has changed, and does nothing otherwise.
-
-  Three limits this does NOT paper over. A bench that wants a source off from
-  the first sample should set that source's own parameter to 0 in its defaults
-  file as well, which answers the first two.
-
-  1. It gates ON CHANGE, not continuously. Any later writer wins: a GCS set,
-     and also an automatic AP_Param defaults reload. A clamp would rewrite a
-     parameter every frame, which does not remove the storage race so much as
-     widen it -- AP_Param::save() queues a POINTER and the IO thread saves
-     whatever the value is by the time it runs (AP_Param.cpp:1255-1259,
-     1289-1293), so a set_and_save draining after any gate can store the zero
-     either way.
-
-  2. It cannot apply until parameters have loaded, so anything calibrated
-     during AP_Vehicle::setup() -- INS, baro, airspeed -- is calibrated against
-     whatever noise the defaults asked for. That is a property of where this is
-     called from, not a necessity: ArduPlane reloads defaults at system.cpp:109
-     and calls startup_INS() at :123, so an interval exists. No hook lives
-     there today, and adding one means vehicle code rather than this library.
-
-  3. The categories are not fully independent, because the model they gate is
-     not. Switching vibration OFF -- setting bit 2, which zeroes vibe_freq and
-     vibe_motor -- satisfies the condition upstream uses to add the gyro's
-     background noise instead (AP_InertialSensor_SITL.cpp:246-250), at IMU
-     amplitude. So that bit can leave background noise active while removing
-     structured vibration; which is larger depends on the amplitudes, the
-     throttle and the motor state. Setting the IMU bit as well removes both.
-
-  The guard below is load-bearing rather than defensive. The SITL physics loop
-  starts during vehicle bring-up, BEFORE AP_Vehicle::setup() has loaded
-  parameters: HAL_SITL_Class.cpp calls callbacks->setup() and only then
-  set_system_initialized(). Running earlier captured pre-defaults values and
-  zeroed them, and the defaults file then landed on top and silently undid the
-  gate -- that version gated only the parameters the defaults did not mention.
- */
-void SIM::apply_noise_off(void)
-{
-    if (!hal.scheduler->is_system_initialized()) {
-        return;
-    }
-
-    // Read the mask ONCE. Recording noise_off_applied from a second read
-    // could record a mask that was only partly applied if a GCS write lands
-    // between the two.
-    noise_off_wanted = noise_off;
-    if (noise_off_wanted == noise_off_applied) {
-        // Includes the default 0 == 0: a build that never sets this
-        // parameter never writes a noise parameter through this path.
-        return;
-    }
-    visit_noise();
-    noise_off_applied = noise_off_wanted;
 }
 
 } // namespace SITL
