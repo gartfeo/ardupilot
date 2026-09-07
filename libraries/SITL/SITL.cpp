@@ -732,7 +732,7 @@ const AP_Param::GroupInfo SIM::var_info3[] = {
 
     // @Param: NOISE_OFF
     // @DisplayName: Disable simulated noise by category
-    // @Description: Bitmask of noise categories to disable. A SET bit turns that category OFF, so 0 leaves every source at its own parameter's value and behaves as though this parameter did not exist. Intended for a bench isolating a control law from injected randomness, which can then reintroduce one calibrated category at a time. Values are restored when a bit is cleared, and are never written to storage.
+    // @Description: Bitmask of noise categories to disable. A SET bit turns that category OFF, so 0 leaves every source at its own parameter's value and behaves as though this parameter did not exist. Intended for a bench isolating a control law from injected randomness, which can then reintroduce one calibrated category at a time. Values are captured when a bit is set and restored when it is cleared. Three limits: this applies when the mask CHANGES rather than continuously, so a value written afterwards stays in force; it cannot apply until parameters have loaded, so anything calibrated during vehicle setup sees the configured noise; and it only ever calls set(), never set_and_save(), which means this code never asks for a save but does not prevent a save requested elsewhere from storing a gated value.
     // @Bitmask: 0:IMU,1:Airframe,2:Vibration,3:GyroDrift,4:Baro,5:GPS,6:Compass,7:Airspeed,8:Rangefinder,9:OpticalFlow,10:WindTurbulence,11:Timing,12:Vicon
     // @User: Advanced
     AP_GROUPINFO("NOISE_OFF",     57, SIM,  noise_off, 0),
@@ -1972,30 +1972,32 @@ void SIM::visit_noise(void)
 /*
   Applies SIM_NOISE_OFF when it has changed, and does nothing otherwise.
 
-  Three limits this deliberately does NOT paper over, because each would cost
-  more than it buys:
+  Three limits this does NOT paper over. A bench that wants a source off from
+  the first sample should set that source's own parameter to 0 in its defaults
+  file as well, which answers the first two.
 
-  1. It gates ON CHANGE, not continuously. A value written to a gated
-     parameter after the mask last changed stays in force. Making it a clamp
-     would mean rewriting a parameter every frame, which would also guarantee
-     that a GCS set_and_save landing on a gated parameter persists the zero:
-     AP_Param::save() queues a POINTER and the IO thread saves whatever the
-     value is by the time it runs (AP_Param.cpp:1255-1259, 1289-1293). A bench
-     that wants a source off from the first sample should set that source's own
-     parameter to 0 in its defaults file as well.
+  1. It gates ON CHANGE, not continuously. Any later writer wins: a GCS set,
+     and also an automatic AP_Param defaults reload. A clamp would rewrite a
+     parameter every frame, which does not remove the storage race so much as
+     widen it -- AP_Param::save() queues a POINTER and the IO thread saves
+     whatever the value is by the time it runs (AP_Param.cpp:1255-1259,
+     1289-1293), so a set_and_save draining after any gate can store the zero
+     either way.
 
-  2. It cannot run before parameters are loaded, so anything calibrated during
-     AP_Vehicle::setup() -- INS, baro, airspeed -- is calibrated against
-     whatever noise the defaults asked for. Same answer: put the zero in the
-     defaults file, and treat the mask as the declaration rather than the
-     mechanism for a cold start.
+  2. It cannot apply until parameters have loaded, so anything calibrated
+     during AP_Vehicle::setup() -- INS, baro, airspeed -- is calibrated against
+     whatever noise the defaults asked for. That is a property of where this is
+     called from, not a necessity: ArduPlane reloads defaults at system.cpp:109
+     and calls startup_INS() at :123, so an interval exists. No hook lives
+     there today, and adding one means vehicle code rather than this library.
 
   3. The categories are not fully independent, because the model they gate is
-     not. Switching vibration off ON ITS OWN turns ON the gyro's background
-     noise branch, which upstream runs exactly when no structured vibration is
-     modelled (AP_InertialSensor_SITL.cpp:246-250). Its amplitude is the IMU
-     noise, so vibration and IMU off together is quiet; vibration alone is
-     noisier than leaving it on.
+     not. Switching vibration OFF -- setting bit 2, which zeroes vibe_freq and
+     vibe_motor -- satisfies the condition upstream uses to add the gyro's
+     background noise instead (AP_InertialSensor_SITL.cpp:246-250), at IMU
+     amplitude. So that bit can leave background noise active while removing
+     structured vibration; which is larger depends on the amplitudes, the
+     throttle and the motor state. Setting the IMU bit as well removes both.
 
   The guard below is load-bearing rather than defensive. The SITL physics loop
   starts during vehicle bring-up, BEFORE AP_Vehicle::setup() has loaded
