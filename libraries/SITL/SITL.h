@@ -179,7 +179,7 @@ public:
     Matrix3f ahrs_rotation;
     Matrix3f ahrs_rotation_inv;
 
-    AP_Float mag_noise;   // in mag units (earth field is 818)
+    AP_Float mag_noise_param;   // in mag units (earth field is 818)
     AP_Vector3f mag_mot;  // in mag units per amp
     AP_Vector3f mag_ofs[HAL_COMPASS_MAX_SENSORS];  // in mag units
     AP_Vector3f mag_diag[HAL_COMPASS_MAX_SENSORS];  // diagonal corrections
@@ -188,13 +188,13 @@ public:
     AP_Int8 mag_fail[HAL_COMPASS_MAX_SENSORS];   // fail magnetometer, 1 for no data, 2 for freeze
     AP_Int8 mag_save_ids;
 
-    AP_Float sonar_glitch;// probability between 0-1 that any given sonar sample will read as max distance
-    AP_Float sonar_noise; // in metres
+    AP_Float sonar_glitch_param;// probability between 0-1 that any given sonar sample will read as max distance
+    AP_Float sonar_noise_param; // in metres
     AP_Float sonar_scale; // meters per volt
     AP_Int8 sonar_rot;  // from rotations enumeration
 
-    AP_Float drift_speed; // degrees/second/minute
-    AP_Float drift_time;  // period in minutes
+    AP_Float drift_speed_param; // degrees/second/minute
+    AP_Float drift_time_param;  // period in minutes
     AP_Float engine_mul;  // engine multiplier
 
     // Airframe disturbance noise. Aircraft::add_noise perturbs the model's
@@ -202,26 +202,26 @@ public:
     // this alters simulated TRUTH, not a sensor reading. They were const
     // members in SIM_Aircraft.h; the defaults keep that behaviour, and 0
     // removes the term so a bench can fly noise-free dynamics.
-    AP_Float dyn_gyro_noise;   // in degrees/second
-    AP_Float dyn_accel_noise;  // in m/s/s
+    AP_Float dyn_gyro_noise_param;   // in degrees/second
+    AP_Float dyn_accel_noise_param;  // in m/s/s
     AP_Int8  engine_fail; // engine servo to fail (0-7)
 
-    AP_Float gps_noise[2]; // amplitude of the gps altitude error
+    AP_Float gps_noise_param[2]; // amplitude of the gps altitude error
     AP_Int16 gps_lock_time[2]; // delay in seconds before GPS gets lock
     AP_Int16 gps_alt_offset[2]; // gps alt error
     AP_Int8  gps_disable[2]; // disable simulated GPS
     AP_Int16 gps_delay_ms[2];   // delay in milliseconds
     AP_Int8  gps_type[2]; // see enum SITL::GPS::Type
-    AP_Float gps_byteloss[2];// byte loss as a percent
+    AP_Float gps_byteloss_param[2];// byte loss as a percent
     AP_Int8  gps_numsats[2]; // number of visible satellites
-    AP_Vector3f gps_glitch[2];  // glitch offsets in lat, lon and altitude
+    AP_Vector3f gps_glitch_param[2];  // glitch offsets in lat, lon and altitude
     AP_Int8  gps_hertz[2];   // GPS update rate in Hz
     AP_Int8 gps_hdg_enabled[2]; // enable the output of a NMEA heading HDT sentence or UBLOX RELPOSNED
-    AP_Float gps_drift_alt[2]; // altitude drift error
+    AP_Float gps_drift_alt_param[2]; // altitude drift error
     AP_Vector3f gps_pos_offset[2];  // XYZ position of the GPS antenna phase centre relative to the body frame origin (m)
     AP_Float gps_accuracy[2];
-    AP_Vector3f gps_vel_err[2]; // Velocity error offsets in NED (x = N, y = E, z = D)
-    AP_Int8 gps_jam[2]; // jamming simulation enable
+    AP_Vector3f gps_vel_err_param[2]; // Velocity error offsets in NED (x = N, y = E, z = D)
+    AP_Int8 gps_jam_param[2]; // jamming simulation enable
 
     // initial offset on GPS lat/lon, used to shift origin
     AP_Float gps_init_lat_ofs;
@@ -255,7 +255,7 @@ public:
     AP_Float speedup; // simulation speedup
     AP_Int8  odom_enable; // enable visual odometry data
     AP_Int8  telem_baudlimit_enable; // enable baudrate limiting on links
-    AP_Float flow_noise; // optical flow measurement noise (rad/sec)
+    AP_Float flow_noise_param; // optical flow measurement noise (rad/sec)
     AP_Int8  baro_count; // number of simulated baros to create
     AP_Int8  imu_count; // number of simulated IMUs to create
     AP_Int32 loop_delay; // extra delay to add to every loop
@@ -263,11 +263,11 @@ public:
     AP_Int32 mag_devid[MAX_CONNECTED_MAGS]; // Mag devid
     AP_Float buoyancy; // submarine buoyancy in Newtons
     AP_Int16 loop_rate_hz;
-    AP_Int16 loop_time_jitter_us;
+    AP_Int16 loop_time_jitter_us_param;
     AP_Int32 on_hardware_output_enable_mask;  // mask of output channels passed through to actual hardware
     AP_Int16 on_hardware_relay_enable_mask;   // mask of relays passed through to actual hardware
 
-    AP_Float uart_byte_loss_pct;
+    AP_Float uart_byte_loss_pct_param;
 
 #ifdef SFML_JOYSTICK
     AP_Int8 sfml_joystick_id;
@@ -278,9 +278,9 @@ public:
     class BaroParm {
     public:
         static const struct AP_Param::GroupInfo var_info[];
-        AP_Float noise;  // in metres
-        AP_Float drift;  // in metres per second
-        AP_Float glitch; // glitch in meters
+        AP_Float noise_param;  // in metres -- read via SIM::baro_noise()
+        AP_Float drift_param;  // in metres per second -- SIM::baro_drift()
+        AP_Float glitch_param; // glitch in meters -- SIM::baro_glitch()
         AP_Int8  freeze; // freeze baro to last recorded altitude
         AP_Int8  disable; // disable simulated barometers
         AP_Int16 delay;  // barometer data delay in ms
@@ -299,7 +299,7 @@ public:
     class AirspeedParm {
     public:
         static const struct AP_Param::GroupInfo var_info[];
-        AP_Float noise;  // pressure noise
+        AP_Float noise_param;  // pressure noise -- SIM::airspeed_noise()
         AP_Float fail;   // airspeed value in m/s to fail to
         AP_Float fail_pressure; // pitot tube failure pressure in Pa
         AP_Float fail_pitot_pressure; // pitot tube failure pressure in Pa
@@ -368,7 +368,7 @@ public:
     float wind_dir_z_active;
     AP_Float wind_speed;
     AP_Float wind_direction;
-    AP_Float wind_turbulance;
+    AP_Float wind_turbulance_param;
     AP_Float wind_dir_z;
     AP_Float wind_change_tc;
     AP_Int8  wind_type; // enum WindLimitType
@@ -410,12 +410,12 @@ public:
     AP_Int8 wow_pin;
 
     // vibration frequencies in Hz on each axis
-    AP_Vector3f vibe_freq;
+    AP_Vector3f vibe_freq_param;
 
     // max frequency to use as baseline for adding motor noise for the gyros and accels
-    AP_Float vibe_motor;
+    AP_Float vibe_motor_param;
     // amplitude scaling of motor noise relative to gyro/accel noise
-    AP_Float vibe_motor_scale;
+    AP_Float vibe_motor_scale_param;
 
     // what harmonics to generate
     AP_Int16 vibe_motor_harmonics;
@@ -533,12 +533,12 @@ public:
     AP_Int8 led_layout;
 
     // vicon parameters
-    AP_Vector3f vicon_glitch;   // glitch in meters in vicon's local NED frame
+    AP_Vector3f vicon_glitch_param;   // glitch in meters in vicon's local NED frame
     AP_Int8 vicon_fail;         // trigger vicon failure
     AP_Int16 vicon_yaw;         // vicon local yaw in degrees
     AP_Int16 vicon_yaw_error;   // vicon yaw error in degrees (added to reported yaw sent to vehicle)
     AP_Int8 vicon_type_mask;    // vicon message type mask (bit0:vision position estimate, bit1:vision speed estimate, bit2:vicon position estimate)
-    AP_Vector3f vicon_vel_glitch;   // velocity glitch in m/s in vicon's local frame
+    AP_Vector3f vicon_vel_glitch_param;   // velocity glitch in m/s in vicon's local frame
 
     // get the rangefinder reading for the desired instance, returns -1 for no data
     float get_rangefinder(uint8_t instance);
@@ -563,12 +563,12 @@ public:
     // These were hard-coded literals in AP_InertialSensor_SITL; the defaults
     // keep that behaviour, and 0 removes the term so a bench can isolate the
     // vehicle from sensor noise entirely.
-    AP_Float gyro_noise_min;   // in degrees/second
-    AP_Float accel_noise_min;  // in m/s/s
-    AP_Float gyro_noise[INS_MAX_INSTANCES];  // in degrees/second
+    AP_Float gyro_noise_min_param;   // in degrees/second
+    AP_Float accel_noise_min_param;  // in m/s/s
+    AP_Float gyro_noise_param[INS_MAX_INSTANCES];  // in degrees/second
     AP_Vector3f gyro_scale[INS_MAX_INSTANCES];  // percentage
     AP_Vector3f gyro_bias[INS_MAX_INSTANCES]; // in rad/s
-    AP_Float accel_noise[INS_MAX_INSTANCES]; // in m/s/s
+    AP_Float accel_noise_param[INS_MAX_INSTANCES]; // in m/s/s
     AP_Vector3f accel_bias[INS_MAX_INSTANCES]; // in m/s/s
     AP_Vector3f accel_scale[INS_MAX_INSTANCES]; // in m/s/s
     AP_Vector3f accel_trim;
@@ -640,37 +640,57 @@ public:
     };
     AP_Int32 noise_off;
 
-    // Re-reads noise_off and applies it when it has changed. Cheap and safe
-    // to call every frame; returns immediately while nothing has changed,
-    // and never writes a parameter at all while noise_off stays 0.
-    void apply_noise_off(void);
+    bool noise_category_off(NoiseCategory category) const {
+        return (noise_off & (1U << uint8_t(category))) != 0;
+    }
 
-private:
-    // The value a category had when its bit was set, so clearing the bit
-    // restores that category rather than leaving it at zero. Captured at the
-    // transition rather than at first use, so a value configured while the
-    // bit was clear is the one that comes back.
-    static const uint8_t NOISE_SLOTS = 128;
-    float noise_backup[NOISE_SLOTS];
-    uint8_t noise_slot;
-    // SIM has a user-provided constructor, so this needs an in-class
-    // initialiser -- without it the first apply_noise_off() would compare
-    // against an indeterminate mask.
-    int32_t noise_off_applied = 0;
-    // The mask the current walk is applying. Read once by apply_noise_off()
-    // so a GCS write landing mid-walk cannot make the gates disagree with
-    // what noise_off_applied then records.
-    int32_t noise_off_wanted = 0;
+    /*
+      The effective value of every gated parameter. Each returns the
+      configured value, or zero when its category is disabled.
 
-    // Walks every gated parameter. This list IS the definition of "all
-    // noise": a source missing from it is a source SIM_NOISE_OFF does not
-    // turn off. See apply_noise_off() for the scope this does NOT cover.
-    void visit_noise(void);
-    int8_t noise_transition(uint8_t category) const;
-    void gate(AP_Float &p, uint8_t category);
-    void gate(AP_Int8 &p, uint8_t category);
-    void gate(AP_Int16 &p, uint8_t category);
-    void gate(AP_Vector3f &p, uint8_t category);
+      The parameters themselves are named <name>_param and are never written
+      by the mask, which is what makes this authoritative: no later writer can
+      bypass it, no ordering against parameter load matters, and no queued
+      save can persist a gated zero. The rename is deliberate -- a consumer
+      that reads the raw parameter where it should read the effective value
+      fails to compile rather than silently escaping the mask.
+
+      THIS LIST IS THE DEFINITION OF "ALL NOISE": a source without an
+      accessor here is a source SIM_NOISE_OFF does not turn off. It covers
+      the noise-bearing parameters on this object, which is not the same as
+      every source of randomness -- some backends carry hard-coded noise no
+      parameter reaches.
+     */
+    float gyro_noise(uint8_t i) const { return noise_category_off(NOISE_IMU) ? 0.0f : gyro_noise_param[i].get(); }
+    float accel_noise(uint8_t i) const { return noise_category_off(NOISE_IMU) ? 0.0f : accel_noise_param[i].get(); }
+    float gyro_noise_min(void) const { return noise_category_off(NOISE_IMU) ? 0.0f : gyro_noise_min_param.get(); }
+    float accel_noise_min(void) const { return noise_category_off(NOISE_IMU) ? 0.0f : accel_noise_min_param.get(); }
+    float dyn_gyro_noise(void) const { return noise_category_off(NOISE_AIRFRAME) ? 0.0f : dyn_gyro_noise_param.get(); }
+    float dyn_accel_noise(void) const { return noise_category_off(NOISE_AIRFRAME) ? 0.0f : dyn_accel_noise_param.get(); }
+    Vector3f vibe_freq(void) const { return noise_category_off(NOISE_VIBRATION) ? Vector3f{} : vibe_freq_param.get(); }
+    float vibe_motor(void) const { return noise_category_off(NOISE_VIBRATION) ? 0.0f : vibe_motor_param.get(); }
+    float vibe_motor_scale(void) const { return noise_category_off(NOISE_VIBRATION) ? 0.0f : vibe_motor_scale_param.get(); }
+    float drift_speed(void) const { return noise_category_off(NOISE_GYRO_DRIFT) ? 0.0f : drift_speed_param.get(); }
+    float drift_time(void) const { return noise_category_off(NOISE_GYRO_DRIFT) ? 0.0f : drift_time_param.get(); }
+    float gps_noise(uint8_t i) const { return noise_category_off(NOISE_GPS) ? 0.0f : gps_noise_param[i].get(); }
+    float gps_byteloss(uint8_t i) const { return noise_category_off(NOISE_GPS) ? 0.0f : gps_byteloss_param[i].get(); }
+    Vector3f gps_glitch(uint8_t i) const { return noise_category_off(NOISE_GPS) ? Vector3f{} : gps_glitch_param[i].get(); }
+    float gps_drift_alt(uint8_t i) const { return noise_category_off(NOISE_GPS) ? 0.0f : gps_drift_alt_param[i].get(); }
+    Vector3f gps_vel_err(uint8_t i) const { return noise_category_off(NOISE_GPS) ? Vector3f{} : gps_vel_err_param[i].get(); }
+    int8_t gps_jam(uint8_t i) const { return noise_category_off(NOISE_GPS) ? 0 : gps_jam_param[i].get(); }
+    float mag_noise(void) const { return noise_category_off(NOISE_COMPASS) ? 0.0f : mag_noise_param.get(); }
+    float sonar_noise(void) const { return noise_category_off(NOISE_RANGEFINDER) ? 0.0f : sonar_noise_param.get(); }
+    float sonar_glitch(void) const { return noise_category_off(NOISE_RANGEFINDER) ? 0.0f : sonar_glitch_param.get(); }
+    float flow_noise(void) const { return noise_category_off(NOISE_FLOW) ? 0.0f : flow_noise_param.get(); }
+    float wind_turbulance(void) const { return noise_category_off(NOISE_WIND) ? 0.0f : wind_turbulance_param.get(); }
+    int16_t loop_time_jitter_us(void) const { return noise_category_off(NOISE_TIMING) ? 0 : loop_time_jitter_us_param.get(); }
+    float uart_byte_loss_pct(void) const { return noise_category_off(NOISE_TIMING) ? 0.0f : uart_byte_loss_pct_param.get(); }
+    Vector3f vicon_glitch(void) const { return noise_category_off(NOISE_VICON) ? Vector3f{} : vicon_glitch_param.get(); }
+    Vector3f vicon_vel_glitch(void) const { return noise_category_off(NOISE_VICON) ? Vector3f{} : vicon_vel_glitch_param.get(); }
+    float baro_noise(uint8_t i) const { return noise_category_off(NOISE_BARO) ? 0.0f : baro[i].noise_param.get(); }
+    float baro_drift(uint8_t i) const { return noise_category_off(NOISE_BARO) ? 0.0f : baro[i].drift_param.get(); }
+    float baro_glitch(uint8_t i) const { return noise_category_off(NOISE_BARO) ? 0.0f : baro[i].glitch_param.get(); }
+    float airspeed_noise(uint8_t i) const { return noise_category_off(NOISE_AIRSPEED) ? 0.0f : airspeed[i].noise_param.get(); }
 };
 
 } // namespace SITL

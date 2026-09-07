@@ -135,7 +135,7 @@ void Vicon::update_vicon_position_estimate(const Location &loc,
     Vector3f pos_offset_ef = rot * pos_offset;
 
     // add earth frame sensor offset and glitch to position
-    Vector3d pos_corrected = position + (pos_offset_ef + _sitl->vicon_glitch.get()).todouble();
+    Vector3d pos_corrected = position + (pos_offset_ef + _sitl->vicon_glitch()).todouble();
 
     // calculate a velocity offset due to the antenna position offset and body rotation rate
     // note: % operator is overloaded for cross product
@@ -146,7 +146,7 @@ void Vicon::update_vicon_position_estimate(const Location &loc,
 
     // rotate the velocity offset into earth frame and add to the c.g. velocity
     Vector3f vel_rel_offset_ef = rot * vel_rel_offset_bf;
-    Vector3f vel_corrected = velocity + vel_rel_offset_ef + _sitl->vicon_vel_glitch.get();
+    Vector3f vel_corrected = velocity + vel_rel_offset_ef + _sitl->vicon_vel_glitch();
 
     // adjust yaw, position and velocity to account for vicon's yaw
     const int16_t vicon_yaw_deg = _sitl->vicon_yaw.get();

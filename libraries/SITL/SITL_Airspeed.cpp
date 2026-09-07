@@ -6,7 +6,7 @@ namespace SITL {
 // user settable parameters for airspeed sensors
 const AP_Param::GroupInfo SIM::AirspeedParm::var_info[] = {
         // user settable parameters for the 1st airspeed sensor
-    AP_GROUPINFO("RND",     1, AirspeedParm,  noise, 2.0),
+    AP_GROUPINFO("RND",     1, AirspeedParm,  noise_param, 2.0),
     AP_GROUPINFO("OFS",     2, AirspeedParm,  offset, 2013),
     // @Param: FAIL
     // @DisplayName: Airspeed sensor failure

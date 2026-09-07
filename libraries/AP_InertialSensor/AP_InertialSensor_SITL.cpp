@@ -110,7 +110,7 @@ void AP_InertialSensor_SITL::generate_accel()
         // throttle. Minimum noise levels are 2 bits, but averaged over many
         // samples, giving around 0.01 m/s/s -- the default of SIM_ACC_RND_MIN.
         // Set that to 0 to remove the term entirely.
-        float accel_noise = sitl->accel_noise_min;
+        float accel_noise = sitl->accel_noise_min();
         float noise_variation = 0.05f;
         // this smears the individual motor peaks somewhat emulating physical motors
         float freq_variation = 0.12f;
@@ -124,11 +124,11 @@ void AP_InertialSensor_SITL::generate_accel()
         // giving a accel noise variation of 5.33 m/s/s over the full throttle range
         if (motors_on) {
             // add extra noise when the motors are on
-            accel_noise = sitl->accel_noise[accel_instance];
+            accel_noise = sitl->accel_noise(accel_instance);
         }
 
         // VIB_FREQ is a static vibration applied to each axis
-        const Vector3f &vibe_freq = sitl->vibe_freq;
+        const Vector3f vibe_freq = sitl->vibe_freq();
 
         if (!vibe_freq.is_zero() && motors_on) {
             accel.x += sinf(accel_time * 2 * M_PI * vibe_freq.x) * calculate_noise(accel_noise, noise_variation);
@@ -138,7 +138,7 @@ void AP_InertialSensor_SITL::generate_accel()
         }
 
         // VIB_MOT_MAX is a rpm-scaled vibration applied to each axis
-        if (!is_zero(sitl->vibe_motor) && motors_on) {
+        if (!is_zero(sitl->vibe_motor()) && motors_on) {
             uint32_t mask = sitl->state.motor_mask;
             uint8_t mbit;
             while ((mbit = __builtin_ffs(mask)) != 0) {
@@ -150,9 +150,9 @@ void AP_InertialSensor_SITL::generate_accel()
                     const uint8_t bit = __builtin_ffs(harmonics);
                     harmonics &= ~(1U<<(bit-1U));
                     const float phase = accel_motor_phase[motor] * float(bit);
-                    accel.x += sinf(phase) * calculate_noise(accel_noise * sitl->vibe_motor_scale, noise_variation);
-                    accel.y += sinf(phase) * calculate_noise(accel_noise * sitl->vibe_motor_scale, noise_variation);
-                    accel.z += sinf(phase) * calculate_noise(accel_noise * sitl->vibe_motor_scale, noise_variation);
+                    accel.x += sinf(phase) * calculate_noise(accel_noise * sitl->vibe_motor_scale(), noise_variation);
+                    accel.y += sinf(phase) * calculate_noise(accel_noise * sitl->vibe_motor_scale(), noise_variation);
+                    accel.z += sinf(phase) * calculate_noise(accel_noise * sitl->vibe_motor_scale(), noise_variation);
                 }
                 const float phase_incr = base_freq * 2 * M_PI / (accel_sample_hz * nsamples);
                 accel_motor_phase[motor] = wrap_PI(accel_motor_phase[motor] + phase_incr);
@@ -223,7 +223,7 @@ void AP_InertialSensor_SITL::generate_gyro()
         // Baseline sensor noise, applied on every sample below whatever the
         // throttle. Minimum gyro noise is less than 1 bit -- the default of
         // SIM_GYR_RND_MIN. Set that to 0 to remove the term entirely.
-        float gyro_noise = ToRad(sitl->gyro_noise_min);
+        float gyro_noise = ToRad(sitl->gyro_noise_min());
         constexpr float noise_variation = 0.05f;
         // this smears the individual motor peaks somewhat emulating physical motors
         constexpr float freq_variation = 0.12f;
@@ -237,13 +237,13 @@ void AP_InertialSensor_SITL::generate_gyro()
         // giving a gyro noise variation of 0.33 rad/s or 20deg/s over the full throttle range
         if (motors_on) {
             // add extra noise when the motors are on
-            gyro_noise = ToRad(sitl->gyro_noise[gyro_instance]) * sitl->throttle;
+            gyro_noise = ToRad(sitl->gyro_noise(gyro_instance)) * sitl->throttle;
         }
 
         // VIB_FREQ is a static vibration applied to each axis
-        const Vector3f &vibe_freq = sitl->vibe_freq;
+        const Vector3f vibe_freq = sitl->vibe_freq();
 
-        if (vibe_freq.is_zero() && is_zero(sitl->vibe_motor)) {
+        if (vibe_freq.is_zero() && is_zero(sitl->vibe_motor())) {
             // no rpm noise, so add in background noise if any
             p += gyro_noise * rand_float();
             q += gyro_noise * rand_float();
@@ -258,7 +258,7 @@ void AP_InertialSensor_SITL::generate_gyro()
         }
 
         // VIB_MOT_MAX is a rpm-scaled vibration applied to each axis
-        if (!is_zero(sitl->vibe_motor) && motors_on) {
+        if (!is_zero(sitl->vibe_motor()) && motors_on) {
             uint32_t mask = sitl->state.motor_mask;
             uint8_t mbit;
             while ((mbit = __builtin_ffs(mask)) != 0) {
@@ -270,9 +270,9 @@ void AP_InertialSensor_SITL::generate_gyro()
                     const uint8_t bit = __builtin_ffs(harmonics);
                     harmonics &= ~(1U<<(bit-1U));
                     const float phase = gyro_motor_phase[motor] * float(bit);
-                    p += sinf(phase) * calculate_noise(gyro_noise * sitl->vibe_motor_scale, noise_variation);
-                    q += sinf(phase) * calculate_noise(gyro_noise * sitl->vibe_motor_scale, noise_variation);
-                    r += sinf(phase) * calculate_noise(gyro_noise * sitl->vibe_motor_scale, noise_variation);
+                    p += sinf(phase) * calculate_noise(gyro_noise * sitl->vibe_motor_scale(), noise_variation);
+                    q += sinf(phase) * calculate_noise(gyro_noise * sitl->vibe_motor_scale(), noise_variation);
+                    r += sinf(phase) * calculate_noise(gyro_noise * sitl->vibe_motor_scale(), noise_variation);
                 }
                 const float phase_incr = base_freq * 2 * M_PI / (gyro_sample_hz * nsamples);
                 gyro_motor_phase[motor] = wrap_PI(gyro_motor_phase[motor] + phase_incr);
@@ -366,16 +366,16 @@ void AP_InertialSensor_SITL::timer_update(void)
 
 float AP_InertialSensor_SITL::gyro_drift(void) const
 {
-    if (is_zero(sitl->drift_speed) ||
-        is_zero(sitl->drift_time)) {
+    if (is_zero(sitl->drift_speed()) ||
+        is_zero(sitl->drift_time())) {
         return 0;
     }
-    double period  = sitl->drift_time * 2;
+    double period  = sitl->drift_time() * 2;
     double minutes = fmod(AP_HAL::micros64() / 60.0e6, period);
     if (minutes < period/2) {
-        return minutes * ToRad(sitl->drift_speed);
+        return minutes * ToRad(sitl->drift_speed());
     }
-    return (period - minutes) * ToRad(sitl->drift_speed);
+    return (period - minutes) * ToRad(sitl->drift_speed());
 }
 
 

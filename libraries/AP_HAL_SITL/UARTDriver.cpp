@@ -280,8 +280,8 @@ size_t UARTDriver::_write(const uint8_t *buffer, size_t size)
 #if !defined(HAL_BUILD_AP_PERIPH)
         SITL::SIM *_sitl = AP::sitl();
 
-        if (_sitl && _sitl->uart_byte_loss_pct > 0) {
-            if (fabsf(rand_float()) < _sitl->uart_byte_loss_pct.get() * 0.01 * size) {
+        if (_sitl && _sitl->uart_byte_loss_pct() > 0) {
+            if (fabsf(rand_float()) < _sitl->uart_byte_loss_pct() * 0.01 * size) {
                 lost_byte = 1;
             }
         }

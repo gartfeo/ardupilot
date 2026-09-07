@@ -171,7 +171,7 @@ void DroneCANDevice::update_compass() {
 
     // calculate sensor noise and add to 'truth' field in body frame
     // units are milli-Gauss
-    Vector3f noise = rand_vec3f() * AP::sitl()->mag_noise;
+    Vector3f noise = rand_vec3f() * AP::sitl()->mag_noise();
     Vector3f new_mag_data = AP::sitl()->state.bodyMagField + noise;
 
     _setup_eliptical_correcion(0);

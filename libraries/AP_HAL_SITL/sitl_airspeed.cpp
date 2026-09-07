@@ -31,13 +31,14 @@ void SITL_State::_update_airspeed(float true_airspeed)
 {
     for (uint8_t i=0; i<AIRSPEED_MAX_SENSORS; i++) {
         const auto &arspd = _sitl->airspeed[i];
+        const float arspd_noise = _sitl->airspeed_noise(i);
         float airspeed = true_airspeed / AP_Baro::get_EAS2TAS_for_alt_amsl(_sitl->state.altitude);
         const float diff_pressure = sq(airspeed) / arspd.ratio;
         float airspeed_raw;
     
         // apply noise to the differential pressure. This emulates the way
         // airspeed noise reduces with speed
-        airspeed = sqrtf(fabsf(arspd.ratio*(diff_pressure + arspd.noise * rand_float())));
+        airspeed = sqrtf(fabsf(arspd.ratio*(diff_pressure + arspd_noise * rand_float())));
 
         // check sensor failure
         if (is_positive(arspd.fail)) {

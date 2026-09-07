@@ -91,7 +91,7 @@ void AP_Compass_SITL::_timer()
 
     // calculate sensor noise and add to 'truth' field in body frame
     // units are milli-Gauss
-    Vector3f noise = rand_vec3f() * _sitl->mag_noise;
+    Vector3f noise = rand_vec3f() * _sitl->mag_noise();
     Vector3f new_mag_data = _sitl->state.bodyMagField + noise;
 
     // add delay

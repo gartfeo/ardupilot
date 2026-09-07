@@ -489,8 +489,9 @@ void AP_AHRS::update(bool skip_ins_update)
       add timing jitter to simulate slow EKF response
      */
     const auto *sitl = AP::sitl();
-    if (sitl->loop_time_jitter_us > 0) {
-        hal.scheduler->delay_microseconds(random() % sitl->loop_time_jitter_us);
+    const int16_t jitter_us = sitl->loop_time_jitter_us();
+    if (jitter_us > 0) {
+        hal.scheduler->delay_microseconds(random() % jitter_us);
     }
 #endif
 }
