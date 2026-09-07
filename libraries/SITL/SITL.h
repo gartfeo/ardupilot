@@ -612,6 +612,59 @@ public:
      */
     bool set_pose(uint8_t instance, const Location &loc, const Quaternion &quat,
                   const Vector3f &velocity_ef, const Vector3f &gyro_rads);
+
+    /*
+      SIM_NOISE_OFF: one switch over every noise source on this object.
+
+      A SET bit DISABLES that category, so the default of 0 is exactly the
+      behaviour without this feature, and a category added later stays
+      enabled for an aircraft that already has a value stored.
+
+      Intended for a bench that wants to isolate a control law from injected
+      randomness and then reintroduce it one calibrated source at a time.
+     */
+    enum NoiseCategory : uint8_t {
+        NOISE_IMU         = 0,   // accel/gyro sensor noise, incl. the floor
+        NOISE_AIRFRAME    = 1,   // Aircraft::add_noise, perturbs TRUTH
+        NOISE_VIBRATION   = 2,   // IMU vibration, fixed-frequency and motor
+        NOISE_GYRO_DRIFT  = 3,
+        NOISE_BARO        = 4,   // noise, drift and glitch, all instances
+        NOISE_GPS         = 5,   // noise, glitch, velocity error, jam, byte loss
+        NOISE_COMPASS     = 6,
+        NOISE_AIRSPEED    = 7,
+        NOISE_RANGEFINDER = 8,   // sonar noise and glitch
+        NOISE_FLOW        = 9,
+        NOISE_WIND        = 10,  // turbulence only; SIM_WIND_SPD is not noise
+        NOISE_TIMING      = 11,  // loop-time jitter, UART byte loss
+        NOISE_VICON       = 12,
+    };
+    AP_Int32 noise_off;
+
+    // Re-reads noise_off and applies it when it has changed. Cheap and safe
+    // to call every frame; returns immediately while nothing has changed,
+    // and never writes a parameter at all while noise_off stays 0.
+    void apply_noise_off(void);
+
+private:
+    // The loaded values, captured before anything is zeroed, so clearing a
+    // bit restores that category rather than leaving it at zero.
+    static const uint8_t NOISE_SLOTS = 128;
+    float noise_backup[NOISE_SLOTS];
+    uint8_t noise_slot;
+    // SIM has a user-provided constructor, so these need in-class
+    // initialisers -- without them the first apply_noise_off() would read
+    // indeterminate values and could restore garbage over the parameters.
+    bool noise_backed_up = false;
+    int32_t noise_off_applied = 0;
+
+    // Walks every gated parameter, capturing or applying. This list IS the
+    // definition of "all noise": a source missing from it is a source
+    // SIM_NOISE_OFF does not turn off.
+    void visit_noise(bool capture);
+    void gate(AP_Float &p, uint8_t category, bool capture);
+    void gate(AP_Int8 &p, uint8_t category, bool capture);
+    void gate(AP_Int16 &p, uint8_t category, bool capture);
+    void gate(AP_Vector3f &p, uint8_t category, bool capture);
 };
 
 } // namespace SITL

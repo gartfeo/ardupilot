@@ -464,6 +464,10 @@ void Aircraft::fill_fdm(struct sitl_fdm &fdm)
         last_speedup = sitl->speedup;
     }
 
+    // Applies SIM_NOISE_OFF when it has changed. Returns immediately
+    // otherwise, and touches nothing at all while it stays 0.
+    sitl->apply_noise_off();
+
 #if HAL_LOGGING_ENABLED
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
     // the SITL HAL can add information about pausing the simulation

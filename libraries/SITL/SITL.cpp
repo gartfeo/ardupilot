@@ -730,6 +730,13 @@ const AP_Param::GroupInfo SIM::var_info3[] = {
     // @User: Advanced
     AP_GROUPINFO("DYN_ACC_RND",   56, SIM,  dyn_accel_noise, 0.3),
 
+    // @Param: NOISE_OFF
+    // @DisplayName: Disable simulated noise by category
+    // @Description: Bitmask of noise categories to disable. A SET bit turns that category OFF, so 0 leaves every source at its own parameter's value and behaves as though this parameter did not exist. Intended for a bench isolating a control law from injected randomness, which can then reintroduce one calibrated category at a time. Values are restored when a bit is cleared, and are never written to storage.
+    // @Bitmask: 0:IMU,1:Airframe,2:Vibration,3:GyroDrift,4:Baro,5:GPS,6:Compass,7:Airspeed,8:Rangefinder,9:OpticalFlow,10:WindTurbulence,11:Timing,12:Vicon
+    // @User: Advanced
+    AP_GROUPINFO("NOISE_OFF",     57, SIM,  noise_off, 0),
+
 #ifdef SFML_JOYSTICK
     AP_SUBGROUPEXTENSION("",      63, SIM,  var_sfml_joystick),
 #endif // SFML_JOYSTICK
@@ -1805,6 +1812,160 @@ float SIM::measure_distance_at_angle_bf(const Location &location, float angle) c
 
     // ::fprintf(stderr, "Distance @%f = %fm\n", angle, min_dist_cm*0.01f);
     return min_dist_cm * 0.01f;
+}
+
+/*
+  SIM_NOISE_OFF -- see the NoiseCategory enum in SITL.h.
+ */
+
+void SIM::gate(AP_Float &p, uint8_t category, bool capture)
+{
+    if (noise_slot >= NOISE_SLOTS) {
+        return;
+    }
+    if (capture) {
+        noise_backup[noise_slot++] = p.get();
+        return;
+    }
+    const float saved = noise_backup[noise_slot++];
+    p.set((noise_off & (1U << category)) ? 0.0f : saved);
+}
+
+void SIM::gate(AP_Int8 &p, uint8_t category, bool capture)
+{
+    if (noise_slot >= NOISE_SLOTS) {
+        return;
+    }
+    if (capture) {
+        noise_backup[noise_slot++] = p.get();
+        return;
+    }
+    const float saved = noise_backup[noise_slot++];
+    p.set((noise_off & (1U << category)) ? 0 : int8_t(saved));
+}
+
+void SIM::gate(AP_Int16 &p, uint8_t category, bool capture)
+{
+    if (noise_slot >= NOISE_SLOTS) {
+        return;
+    }
+    if (capture) {
+        noise_backup[noise_slot++] = p.get();
+        return;
+    }
+    const float saved = noise_backup[noise_slot++];
+    p.set((noise_off & (1U << category)) ? 0 : int16_t(saved));
+}
+
+void SIM::gate(AP_Vector3f &p, uint8_t category, bool capture)
+{
+    if (noise_slot + 3 > NOISE_SLOTS) {
+        return;
+    }
+    const Vector3f v = p.get();
+    if (capture) {
+        noise_backup[noise_slot++] = v.x;
+        noise_backup[noise_slot++] = v.y;
+        noise_backup[noise_slot++] = v.z;
+        return;
+    }
+    const Vector3f saved{noise_backup[noise_slot],
+                         noise_backup[noise_slot+1],
+                         noise_backup[noise_slot+2]};
+    noise_slot += 3;
+    p.set((noise_off & (1U << category)) ? Vector3f{} : saved);
+}
+
+/*
+  Every noise-bearing parameter on this object, in one place.
+
+  Deliberately absent: ins_noise_throttle_min is the THRESHOLD the IMU
+  vibration branch compares throttle against, not an amplitude -- zeroing it
+  would apply motor noise more often, not less. SIM_WIND_SPD is a modelled
+  condition rather than noise, so only its turbulence term is gated.
+ */
+void SIM::visit_noise(bool capture)
+{
+    noise_slot = 0;
+
+    for (uint8_t i=0; i<INS_MAX_INSTANCES; i++) {
+        gate(gyro_noise[i], NOISE_IMU, capture);
+        gate(accel_noise[i], NOISE_IMU, capture);
+    }
+    gate(gyro_noise_min, NOISE_IMU, capture);
+    gate(accel_noise_min, NOISE_IMU, capture);
+
+    gate(dyn_gyro_noise, NOISE_AIRFRAME, capture);
+    gate(dyn_accel_noise, NOISE_AIRFRAME, capture);
+
+    gate(vibe_freq, NOISE_VIBRATION, capture);
+    gate(vibe_motor, NOISE_VIBRATION, capture);
+    gate(vibe_motor_scale, NOISE_VIBRATION, capture);
+
+    gate(drift_speed, NOISE_GYRO_DRIFT, capture);
+    gate(drift_time, NOISE_GYRO_DRIFT, capture);
+
+    for (uint8_t i=0; i<BARO_MAX_INSTANCES; i++) {
+        gate(baro[i].noise, NOISE_BARO, capture);
+        gate(baro[i].drift, NOISE_BARO, capture);
+        gate(baro[i].glitch, NOISE_BARO, capture);
+    }
+
+    for (uint8_t i=0; i<2; i++) {
+        gate(gps_noise[i], NOISE_GPS, capture);
+        gate(gps_byteloss[i], NOISE_GPS, capture);
+        gate(gps_glitch[i], NOISE_GPS, capture);
+        gate(gps_drift_alt[i], NOISE_GPS, capture);
+        gate(gps_vel_err[i], NOISE_GPS, capture);
+        gate(gps_jam[i], NOISE_GPS, capture);
+    }
+
+    gate(mag_noise, NOISE_COMPASS, capture);
+
+    for (uint8_t i=0; i<AIRSPEED_MAX_SENSORS; i++) {
+        gate(airspeed[i].noise, NOISE_AIRSPEED, capture);
+    }
+
+    gate(sonar_noise, NOISE_RANGEFINDER, capture);
+    gate(sonar_glitch, NOISE_RANGEFINDER, capture);
+
+    gate(flow_noise, NOISE_FLOW, capture);
+
+    gate(wind_turbulance, NOISE_WIND, capture);
+
+    gate(loop_time_jitter_us, NOISE_TIMING, capture);
+    gate(uart_byte_loss_pct, NOISE_TIMING, capture);
+
+    gate(vicon_glitch, NOISE_VICON, capture);
+    gate(vicon_vel_glitch, NOISE_VICON, capture);
+}
+
+void SIM::apply_noise_off(void)
+{
+    // The SITL physics loop starts running during vehicle bring-up, BEFORE
+    // AP_Vehicle::setup() has loaded parameters: HAL_SITL_Class.cpp calls
+    // callbacks->setup() and only then set_system_initialized(). Capturing
+    // any earlier snapshots pre-defaults values, and the defaults file then
+    // lands on top and silently undoes the gate -- an earlier version of
+    // this gated only the parameters the defaults file did not mention.
+    if (!hal.scheduler->is_system_initialized()) {
+        return;
+    }
+
+    if (noise_off == noise_off_applied) {
+        // Includes the default 0 == 0: a build that never sets this
+        // parameter never writes a noise parameter through this path.
+        return;
+    }
+    if (!noise_backed_up) {
+        // Capture on first use, which is the first time a bit is set. The
+        // values are still the ones parameter load produced, because
+        // nothing above this point writes them.
+        visit_noise(true);
+        noise_backed_up = true;
+    }
+    visit_noise(false);
+    noise_off_applied = noise_off;
 }
 
 } // namespace SITL
