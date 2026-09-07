@@ -1818,62 +1818,91 @@ float SIM::measure_distance_at_angle_bf(const Location &location, float angle) c
   SIM_NOISE_OFF -- see the NoiseCategory enum in SITL.h.
  */
 
-void SIM::gate(AP_Float &p, uint8_t category, bool capture)
+/*
+  Each gate() answers one question: did THIS category's bit just change?
+
+  Nothing else is touched. A parameter whose category did not change keeps
+  whatever value it currently has, including one written since the last
+  change -- rewriting the whole set on every change is what made toggling one
+  category discard a calibrated value in another.
+
+  Reaching NOISE_SLOTS means the list outgrew the array, which is a
+  programming error rather than a user misconfiguration, so it panics instead
+  of silently leaving the parameters past the cap ungated.
+ */
+#define NOISE_SLOTS_CHECK(n)                                            \
+    if (noise_slot + (n) > NOISE_SLOTS) {                               \
+        AP_HAL::panic("SIM_NOISE_OFF: NOISE_SLOTS too small");           \
+    }
+
+// 0 -> the category is unchanged, 1 -> it was just switched off,
+// -1 -> it was just switched back on.
+int8_t SIM::noise_transition(uint8_t category) const
 {
-    if (noise_slot >= NOISE_SLOTS) {
-        return;
+    const uint32_t bit = 1U << category;
+    const bool now_off = (noise_off_wanted & bit) != 0;
+    const bool was_off = (noise_off_applied & bit) != 0;
+    if (now_off == was_off) {
+        return 0;
     }
-    if (capture) {
-        noise_backup[noise_slot++] = p.get();
-        return;
-    }
-    const float saved = noise_backup[noise_slot++];
-    p.set((noise_off & (1U << category)) ? 0.0f : saved);
+    return now_off ? 1 : -1;
 }
 
-void SIM::gate(AP_Int8 &p, uint8_t category, bool capture)
+void SIM::gate(AP_Float &p, uint8_t category)
 {
-    if (noise_slot >= NOISE_SLOTS) {
-        return;
+    NOISE_SLOTS_CHECK(1);
+    const int8_t change = noise_transition(category);
+    if (change > 0) {
+        noise_backup[noise_slot] = p.get();
+        p.set(0.0f);
+    } else if (change < 0) {
+        p.set(noise_backup[noise_slot]);
     }
-    if (capture) {
-        noise_backup[noise_slot++] = p.get();
-        return;
-    }
-    const float saved = noise_backup[noise_slot++];
-    p.set((noise_off & (1U << category)) ? 0 : int8_t(saved));
+    noise_slot++;
 }
 
-void SIM::gate(AP_Int16 &p, uint8_t category, bool capture)
+void SIM::gate(AP_Int8 &p, uint8_t category)
 {
-    if (noise_slot >= NOISE_SLOTS) {
-        return;
+    NOISE_SLOTS_CHECK(1);
+    const int8_t change = noise_transition(category);
+    if (change > 0) {
+        noise_backup[noise_slot] = p.get();
+        p.set(0);
+    } else if (change < 0) {
+        p.set(int8_t(noise_backup[noise_slot]));
     }
-    if (capture) {
-        noise_backup[noise_slot++] = p.get();
-        return;
-    }
-    const float saved = noise_backup[noise_slot++];
-    p.set((noise_off & (1U << category)) ? 0 : int16_t(saved));
+    noise_slot++;
 }
 
-void SIM::gate(AP_Vector3f &p, uint8_t category, bool capture)
+void SIM::gate(AP_Int16 &p, uint8_t category)
 {
-    if (noise_slot + 3 > NOISE_SLOTS) {
-        return;
+    NOISE_SLOTS_CHECK(1);
+    const int8_t change = noise_transition(category);
+    if (change > 0) {
+        noise_backup[noise_slot] = p.get();
+        p.set(0);
+    } else if (change < 0) {
+        p.set(int16_t(noise_backup[noise_slot]));
     }
-    const Vector3f v = p.get();
-    if (capture) {
-        noise_backup[noise_slot++] = v.x;
-        noise_backup[noise_slot++] = v.y;
-        noise_backup[noise_slot++] = v.z;
-        return;
+    noise_slot++;
+}
+
+void SIM::gate(AP_Vector3f &p, uint8_t category)
+{
+    NOISE_SLOTS_CHECK(3);
+    const int8_t change = noise_transition(category);
+    if (change > 0) {
+        const Vector3f v = p.get();
+        noise_backup[noise_slot] = v.x;
+        noise_backup[noise_slot+1] = v.y;
+        noise_backup[noise_slot+2] = v.z;
+        p.set(Vector3f{});
+    } else if (change < 0) {
+        p.set(Vector3f{noise_backup[noise_slot],
+                       noise_backup[noise_slot+1],
+                       noise_backup[noise_slot+2]});
     }
-    const Vector3f saved{noise_backup[noise_slot],
-                         noise_backup[noise_slot+1],
-                         noise_backup[noise_slot+2]};
     noise_slot += 3;
-    p.set((noise_off & (1U << category)) ? Vector3f{} : saved);
 }
 
 /*
@@ -1884,88 +1913,114 @@ void SIM::gate(AP_Vector3f &p, uint8_t category, bool capture)
   would apply motor noise more often, not less. SIM_WIND_SPD is a modelled
   condition rather than noise, so only its turbulence term is gated.
  */
-void SIM::visit_noise(bool capture)
+void SIM::visit_noise(void)
 {
     noise_slot = 0;
 
     for (uint8_t i=0; i<INS_MAX_INSTANCES; i++) {
-        gate(gyro_noise[i], NOISE_IMU, capture);
-        gate(accel_noise[i], NOISE_IMU, capture);
+        gate(gyro_noise[i], NOISE_IMU);
+        gate(accel_noise[i], NOISE_IMU);
     }
-    gate(gyro_noise_min, NOISE_IMU, capture);
-    gate(accel_noise_min, NOISE_IMU, capture);
+    gate(gyro_noise_min, NOISE_IMU);
+    gate(accel_noise_min, NOISE_IMU);
 
-    gate(dyn_gyro_noise, NOISE_AIRFRAME, capture);
-    gate(dyn_accel_noise, NOISE_AIRFRAME, capture);
+    gate(dyn_gyro_noise, NOISE_AIRFRAME);
+    gate(dyn_accel_noise, NOISE_AIRFRAME);
 
-    gate(vibe_freq, NOISE_VIBRATION, capture);
-    gate(vibe_motor, NOISE_VIBRATION, capture);
-    gate(vibe_motor_scale, NOISE_VIBRATION, capture);
+    gate(vibe_freq, NOISE_VIBRATION);
+    gate(vibe_motor, NOISE_VIBRATION);
+    gate(vibe_motor_scale, NOISE_VIBRATION);
 
-    gate(drift_speed, NOISE_GYRO_DRIFT, capture);
-    gate(drift_time, NOISE_GYRO_DRIFT, capture);
+    gate(drift_speed, NOISE_GYRO_DRIFT);
+    gate(drift_time, NOISE_GYRO_DRIFT);
 
     for (uint8_t i=0; i<BARO_MAX_INSTANCES; i++) {
-        gate(baro[i].noise, NOISE_BARO, capture);
-        gate(baro[i].drift, NOISE_BARO, capture);
-        gate(baro[i].glitch, NOISE_BARO, capture);
+        gate(baro[i].noise, NOISE_BARO);
+        gate(baro[i].drift, NOISE_BARO);
+        gate(baro[i].glitch, NOISE_BARO);
     }
 
     for (uint8_t i=0; i<2; i++) {
-        gate(gps_noise[i], NOISE_GPS, capture);
-        gate(gps_byteloss[i], NOISE_GPS, capture);
-        gate(gps_glitch[i], NOISE_GPS, capture);
-        gate(gps_drift_alt[i], NOISE_GPS, capture);
-        gate(gps_vel_err[i], NOISE_GPS, capture);
-        gate(gps_jam[i], NOISE_GPS, capture);
+        gate(gps_noise[i], NOISE_GPS);
+        gate(gps_byteloss[i], NOISE_GPS);
+        gate(gps_glitch[i], NOISE_GPS);
+        gate(gps_drift_alt[i], NOISE_GPS);
+        gate(gps_vel_err[i], NOISE_GPS);
+        gate(gps_jam[i], NOISE_GPS);
     }
 
-    gate(mag_noise, NOISE_COMPASS, capture);
+    gate(mag_noise, NOISE_COMPASS);
 
     for (uint8_t i=0; i<AIRSPEED_MAX_SENSORS; i++) {
-        gate(airspeed[i].noise, NOISE_AIRSPEED, capture);
+        gate(airspeed[i].noise, NOISE_AIRSPEED);
     }
 
-    gate(sonar_noise, NOISE_RANGEFINDER, capture);
-    gate(sonar_glitch, NOISE_RANGEFINDER, capture);
+    gate(sonar_noise, NOISE_RANGEFINDER);
+    gate(sonar_glitch, NOISE_RANGEFINDER);
 
-    gate(flow_noise, NOISE_FLOW, capture);
+    gate(flow_noise, NOISE_FLOW);
 
-    gate(wind_turbulance, NOISE_WIND, capture);
+    gate(wind_turbulance, NOISE_WIND);
 
-    gate(loop_time_jitter_us, NOISE_TIMING, capture);
-    gate(uart_byte_loss_pct, NOISE_TIMING, capture);
+    gate(loop_time_jitter_us, NOISE_TIMING);
+    gate(uart_byte_loss_pct, NOISE_TIMING);
 
-    gate(vicon_glitch, NOISE_VICON, capture);
-    gate(vicon_vel_glitch, NOISE_VICON, capture);
+    gate(vicon_glitch, NOISE_VICON);
+    gate(vicon_vel_glitch, NOISE_VICON);
 }
 
+/*
+  Applies SIM_NOISE_OFF when it has changed, and does nothing otherwise.
+
+  Three limits this deliberately does NOT paper over, because each would cost
+  more than it buys:
+
+  1. It gates ON CHANGE, not continuously. A value written to a gated
+     parameter after the mask last changed stays in force. Making it a clamp
+     would mean rewriting a parameter every frame, which would also guarantee
+     that a GCS set_and_save landing on a gated parameter persists the zero:
+     AP_Param::save() queues a POINTER and the IO thread saves whatever the
+     value is by the time it runs (AP_Param.cpp:1255-1259, 1289-1293). A bench
+     that wants a source off from the first sample should set that source's own
+     parameter to 0 in its defaults file as well.
+
+  2. It cannot run before parameters are loaded, so anything calibrated during
+     AP_Vehicle::setup() -- INS, baro, airspeed -- is calibrated against
+     whatever noise the defaults asked for. Same answer: put the zero in the
+     defaults file, and treat the mask as the declaration rather than the
+     mechanism for a cold start.
+
+  3. The categories are not fully independent, because the model they gate is
+     not. Switching vibration off ON ITS OWN turns ON the gyro's background
+     noise branch, which upstream runs exactly when no structured vibration is
+     modelled (AP_InertialSensor_SITL.cpp:246-250). Its amplitude is the IMU
+     noise, so vibration and IMU off together is quiet; vibration alone is
+     noisier than leaving it on.
+
+  The guard below is load-bearing rather than defensive. The SITL physics loop
+  starts during vehicle bring-up, BEFORE AP_Vehicle::setup() has loaded
+  parameters: HAL_SITL_Class.cpp calls callbacks->setup() and only then
+  set_system_initialized(). Running earlier captured pre-defaults values and
+  zeroed them, and the defaults file then landed on top and silently undid the
+  gate -- that version gated only the parameters the defaults did not mention.
+ */
 void SIM::apply_noise_off(void)
 {
-    // The SITL physics loop starts running during vehicle bring-up, BEFORE
-    // AP_Vehicle::setup() has loaded parameters: HAL_SITL_Class.cpp calls
-    // callbacks->setup() and only then set_system_initialized(). Capturing
-    // any earlier snapshots pre-defaults values, and the defaults file then
-    // lands on top and silently undoes the gate -- an earlier version of
-    // this gated only the parameters the defaults file did not mention.
     if (!hal.scheduler->is_system_initialized()) {
         return;
     }
 
-    if (noise_off == noise_off_applied) {
+    // Read the mask ONCE. Recording noise_off_applied from a second read
+    // could record a mask that was only partly applied if a GCS write lands
+    // between the two.
+    noise_off_wanted = noise_off;
+    if (noise_off_wanted == noise_off_applied) {
         // Includes the default 0 == 0: a build that never sets this
         // parameter never writes a noise parameter through this path.
         return;
     }
-    if (!noise_backed_up) {
-        // Capture on first use, which is the first time a bit is set. The
-        // values are still the ones parameter load produced, because
-        // nothing above this point writes them.
-        visit_noise(true);
-        noise_backed_up = true;
-    }
-    visit_noise(false);
-    noise_off_applied = noise_off;
+    visit_noise();
+    noise_off_applied = noise_off_wanted;
 }
 
 } // namespace SITL

@@ -646,25 +646,31 @@ public:
     void apply_noise_off(void);
 
 private:
-    // The loaded values, captured before anything is zeroed, so clearing a
-    // bit restores that category rather than leaving it at zero.
+    // The value a category had when its bit was set, so clearing the bit
+    // restores that category rather than leaving it at zero. Captured at the
+    // transition rather than at first use, so a value configured while the
+    // bit was clear is the one that comes back.
     static const uint8_t NOISE_SLOTS = 128;
     float noise_backup[NOISE_SLOTS];
     uint8_t noise_slot;
-    // SIM has a user-provided constructor, so these need in-class
-    // initialisers -- without them the first apply_noise_off() would read
-    // indeterminate values and could restore garbage over the parameters.
-    bool noise_backed_up = false;
+    // SIM has a user-provided constructor, so this needs an in-class
+    // initialiser -- without it the first apply_noise_off() would compare
+    // against an indeterminate mask.
     int32_t noise_off_applied = 0;
+    // The mask the current walk is applying. Read once by apply_noise_off()
+    // so a GCS write landing mid-walk cannot make the gates disagree with
+    // what noise_off_applied then records.
+    int32_t noise_off_wanted = 0;
 
-    // Walks every gated parameter, capturing or applying. This list IS the
-    // definition of "all noise": a source missing from it is a source
-    // SIM_NOISE_OFF does not turn off.
-    void visit_noise(bool capture);
-    void gate(AP_Float &p, uint8_t category, bool capture);
-    void gate(AP_Int8 &p, uint8_t category, bool capture);
-    void gate(AP_Int16 &p, uint8_t category, bool capture);
-    void gate(AP_Vector3f &p, uint8_t category, bool capture);
+    // Walks every gated parameter. This list IS the definition of "all
+    // noise": a source missing from it is a source SIM_NOISE_OFF does not
+    // turn off. See apply_noise_off() for the scope this does NOT cover.
+    void visit_noise(void);
+    int8_t noise_transition(uint8_t category) const;
+    void gate(AP_Float &p, uint8_t category);
+    void gate(AP_Int8 &p, uint8_t category);
+    void gate(AP_Int16 &p, uint8_t category);
+    void gate(AP_Vector3f &p, uint8_t category);
 };
 
 } // namespace SITL
