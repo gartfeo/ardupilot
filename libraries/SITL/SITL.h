@@ -651,9 +651,13 @@ public:
       The parameters themselves are named <name>_param and are never written
       by the mask, which is what makes this authoritative: no later writer can
       bypass it, no ordering against parameter load matters, and no queued
-      save can persist a gated zero. The rename is deliberate -- a consumer
-      that reads the raw parameter where it should read the effective value
-      fails to compile rather than silently escaping the mask.
+      save can persist a gated zero. The rename is deliberate, but be precise
+      about what it buys: it is a MIGRATION guarantee, not encapsulation.
+      Renaming forced every consumer that read the old member to be edited
+      before it would build. It does not compel a new consumer to choose the
+      accessor -- these members are public, so code can still name a _param
+      deliberately. Making them private would enforce it, at the cost of the
+      writes in ReplayGyroFFT.cpp and the nested parameter metadata.
 
       THIS LIST IS THE DEFINITION OF "ALL NOISE": a source without an
       accessor here is a source SIM_NOISE_OFF does not turn off. It covers
