@@ -317,6 +317,8 @@ void Aircraft::sync_frame_time(void)
 /* add noise based on throttle level (from 0..1) */
 void Aircraft::add_noise(float throttle)
 {
+    const float gyro_noise = radians(sitl->dyn_gyro_noise.get());
+    const float accel_noise = sitl->dyn_accel_noise.get();
     gyro += Vector3f(rand_normal(0, 1),
                      rand_normal(0, 1),
                      rand_normal(0, 1)) * gyro_noise * fabsf(throttle);

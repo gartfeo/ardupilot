@@ -196,6 +196,14 @@ public:
     AP_Float drift_speed; // degrees/second/minute
     AP_Float drift_time;  // period in minutes
     AP_Float engine_mul;  // engine multiplier
+
+    // Airframe disturbance noise. Aircraft::add_noise perturbs the model's
+    // OWN gyro and accel_body by these amplitudes scaled by |throttle|, so
+    // this alters simulated TRUTH, not a sensor reading. They were const
+    // members in SIM_Aircraft.h; the defaults keep that behaviour, and 0
+    // removes the term so a bench can fly noise-free dynamics.
+    AP_Float dyn_gyro_noise;   // in degrees/second
+    AP_Float dyn_accel_noise;  // in m/s/s
     AP_Int8  engine_fail; // engine servo to fail (0-7)
 
     AP_Float gps_noise[2]; // amplitude of the gps altitude error

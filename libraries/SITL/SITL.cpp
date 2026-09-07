@@ -716,6 +716,20 @@ const AP_Param::GroupInfo SIM::var_info3[] = {
     AP_GROUPINFO("OSD_ROWS",     54, SIM,  osd_rows, 16),
 #endif
 
+    // @Param: DYN_GYR_RND
+    // @DisplayName: Airframe gyro disturbance
+    // @Description: Gaussian disturbance added to the simulated airframe's own body rates, scaled by absolute throttle. This perturbs simulated truth rather than a sensor reading, and is separate from the IMU noise set by SIM_GYR_RND_MIN and SIM_GYRn_RND. The default is the amplitude SITL has always applied; 0 removes it so a bench can fly noise-free dynamics.
+    // @Units: deg/s
+    // @User: Advanced
+    AP_GROUPINFO("DYN_GYR_RND",   55, SIM,  dyn_gyro_noise, 0.1),
+
+    // @Param: DYN_ACC_RND
+    // @DisplayName: Airframe accel disturbance
+    // @Description: Gaussian disturbance added to the simulated airframe's own body accelerations, scaled by absolute throttle. This perturbs simulated truth rather than a sensor reading, and is separate from the IMU noise set by SIM_ACC_RND_MIN and SIM_ACCn_RND. The default is the amplitude SITL has always applied; 0 removes it so a bench can fly noise-free dynamics.
+    // @Units: m/s/s
+    // @User: Advanced
+    AP_GROUPINFO("DYN_ACC_RND",   56, SIM,  dyn_accel_noise, 0.3),
+
 #ifdef SFML_JOYSTICK
     AP_SUBGROUPEXTENSION("",      63, SIM,  var_sfml_joystick),
 #endif // SFML_JOYSTICK
