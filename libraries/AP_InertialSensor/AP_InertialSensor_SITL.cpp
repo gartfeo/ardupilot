@@ -366,16 +366,20 @@ void AP_InertialSensor_SITL::timer_update(void)
 
 float AP_InertialSensor_SITL::gyro_drift(void) const
 {
-    if (is_zero(sitl->drift_speed()) ||
-        is_zero(sitl->drift_time())) {
+    // Read each value once. Re-reading drift_time after the guard would let a
+    // concurrent write -- of the parameter, or now of SIM_NOISE_OFF -- put a
+    // zero period into fmod, and fmod(x, 0) is NaN.
+    const float drift_speed = sitl->drift_speed();
+    const float drift_time = sitl->drift_time();
+    if (is_zero(drift_speed) || is_zero(drift_time)) {
         return 0;
     }
-    double period  = sitl->drift_time() * 2;
+    double period  = drift_time * 2;
     double minutes = fmod(AP_HAL::micros64() / 60.0e6, period);
     if (minutes < period/2) {
-        return minutes * ToRad(sitl->drift_speed());
+        return minutes * ToRad(drift_speed);
     }
-    return (period - minutes) * ToRad(sitl->drift_speed());
+    return (period - minutes) * ToRad(drift_speed);
 }
 
 
