@@ -551,6 +551,12 @@ public:
 #endif
 
     // IMU control parameters
+    // Baseline sensor noise, added on EVERY sample regardless of throttle.
+    // These were hard-coded literals in AP_InertialSensor_SITL; the defaults
+    // keep that behaviour, and 0 removes the term so a bench can isolate the
+    // vehicle from sensor noise entirely.
+    AP_Float gyro_noise_min;   // in degrees/second
+    AP_Float accel_noise_min;  // in m/s/s
     AP_Float gyro_noise[INS_MAX_INSTANCES];  // in degrees/second
     AP_Vector3f gyro_scale[INS_MAX_INSTANCES];  // percentage
     AP_Vector3f gyro_bias[INS_MAX_INSTANCES]; // in rad/s

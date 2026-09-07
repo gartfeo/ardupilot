@@ -1132,6 +1132,20 @@ const AP_Param::GroupInfo SIM::var_ins[] = {
     // @Vector3Parameter: 1
     AP_GROUPINFO("ACC3_BIAS",     7, SIM, accel_bias[2], 0),
 #endif
+    // @Param: GYR_RND_MIN
+    // @DisplayName: Gyro baseline noise
+    // @Description: Gyro noise added on every sample whatever the throttle, separate from the motor vibration set by SIM_GYRn_RND. The default is the sensor noise floor SITL has always applied; 0 removes it so a bench can isolate the vehicle from gyro noise.
+    // @Units: deg/s
+    // @User: Advanced
+    AP_GROUPINFO("GYR_RND_MIN",  50, SIM, gyro_noise_min, 0.04),
+
+    // @Param: ACC_RND_MIN
+    // @DisplayName: Accel baseline noise
+    // @Description: Accelerometer noise added on every sample whatever the throttle, separate from the motor vibration set by SIM_ACCn_RND. The default is the sensor noise floor SITL has always applied; 0 removes it so a bench can isolate the vehicle from accelerometer noise.
+    // @Units: m/s/s
+    // @User: Advanced
+    AP_GROUPINFO("ACC_RND_MIN",  51, SIM, accel_noise_min, 0.01),
+
     // @Param: GYR1_RND
     // @DisplayName: Gyro 1 motor noise factor
     // @Description: scaling factor for simulated vibration from motors
