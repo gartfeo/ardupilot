@@ -43,12 +43,12 @@ void DroneCANDevice::update_baro() {
         return;
     }
 
-    sim_alt += AP::sitl()->baro[0].drift * now_ms * 0.001f;
-    sim_alt += AP::sitl()->baro[0].noise * rand_float();
+    sim_alt += AP::sitl()->baro_drift(0) * now_ms * 0.001f;
+    sim_alt += AP::sitl()->baro_noise(0) * rand_float();
 
 
     // add baro glitch
-    sim_alt += AP::sitl()->baro[0].glitch;
+    sim_alt += AP::sitl()->baro_glitch(0);
 
     // add delay
     uint32_t best_time_delta = 200;  // initialise large time representing buffer entry closest to current time - delay.
