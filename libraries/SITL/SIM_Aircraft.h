@@ -188,6 +188,9 @@ protected:
     Location home;
     bool home_is_set;
     Location location;
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && defined(__linux__)
+    NavPyPoseCapture navpy_pose_capture;
+#endif
 
     float ground_level;
     float home_yaw;

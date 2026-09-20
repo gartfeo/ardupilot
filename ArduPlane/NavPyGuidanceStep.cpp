@@ -51,6 +51,15 @@ struct Row {
     uint16_t servos[16];
 };
 Row rows[MAX_COUNT];
+struct PoseRow {
+    SITL::NavPyPoseSample pose;
+    uint64_t truth_us;
+    uint32_t vehicle;
+};
+PoseRow pose_rows[MAX_COUNT];
+bool pose_capture;
+const char *pose_source;
+bool pose_precast;
 unsigned count, total;
 uint64_t start_us, boot[2];
 bool configured, enabled, finished, pending_end, dispatching;
@@ -79,6 +88,16 @@ void configure()
     const char *mode = getenv("NAVPY_GUIDANCE_MODE");
     if (!mode) { return; }
     if (strcmp(mode, "closed-loop") || getenv("NAVPY_STEP_MODE")) { fail("configuration"); }
+    const char *capture = getenv("NAVPY_POSE_CAPTURE");
+    if (capture && strcmp(capture, "1")) { fail("pose_configuration"); }
+    pose_capture = capture != nullptr;
+    pose_source = getenv("NAVPY_RENDER_POSE");
+    if (pose_source) {
+        if (!pose_capture || (strcmp(pose_source, "rounded") && strcmp(pose_source, "precast"))) {
+            fail("pose_source_configuration");
+        }
+        pose_precast = !strcmp(pose_source, "precast");
+    }
     start_us = environment_number("NAVPY_GUIDANCE_START_US");
     const uint64_t n = environment_number("NAVPY_GUIDANCE_COUNT");
     if (n < 3 || n > MAX_COUNT) { fail("window_size"); }
@@ -163,6 +182,33 @@ void exchange(const State &state, uint32_t vehicle, uint32_t tick)
     if (row.after_us != row.source_us) { fail("clock_advanced_during_wait"); }
     pending_end = true;
 }
+void save_pose()
+{
+    if (!pose_capture) { return; }
+    FILE *out = fopen("navpy-pose.csv", "wx");
+    if (!out) { fail("pose_evidence_open"); }
+    fprintf(out, "version,boot0,boot1,vehicle,step,tick,source_us,truth_us,publish_us,conversion_us,sequence,physics_sequence,expected_physics_sequence,branch,ftype_size,valid,origin_lat,origin_lng,home_alt,dlat_hex,dlng_hex,alt_cm_hex,rounded_lat,rounded_lng,rounded_alt");
+    if (pose_source) { fprintf(out, ",pose_source,precast_lat_hex,precast_lng_hex,precast_alt_hex"); }
+    fprintf(out, "\n");
+    for (unsigned i=0; i<total; i++) {
+        const Row &r = rows[i];
+        const PoseRow &p = pose_rows[i];
+        const auto &s = p.pose;
+        fprintf(out, "%u,%" PRIu64 ",%" PRIu64 ",%u,%u,%u,%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%" PRIu64 ",%u,%u,%u,%d,%d,%d,%a,%a,%a,%d,%d,%d",
+                pose_source ? 2U : 1U, boot[0], boot[1], p.vehicle, i+1, r.tick, r.source_us,
+                p.truth_us, s.publish_us, s.conversion_us, s.sequence,
+                s.physics_sequence, s.expected_physics_sequence,
+                unsigned(s.branch), unsigned(s.ftype_size), unsigned(s.valid),
+                s.origin_lat, s.origin_lng, s.home_alt, s.dlat, s.dlng, s.altitude_cm,
+                s.rounded_lat, s.rounded_lng, s.rounded_alt);
+        if (pose_source) {
+            fprintf(out, ",%s,%a,%a,%a", pose_source, s.precast[0], s.precast[1], s.precast[2]);
+        }
+        fprintf(out, "\n");
+    }
+    const bool bad = ferror(out);
+    if (fclose(out) || bad) { fail("pose_evidence_write"); }
+}
 void save()
 {
     FILE *out = fopen("navpy-guidance.csv", "wx");
@@ -179,6 +225,7 @@ void save()
     }
     const bool bad = ferror(out);
     if (fclose(out) || bad) { fail("evidence_write"); }
+    save_pose();
     printf("NAVPY_GUIDANCE_COMPLETE count=%u\n", total);
     fflush(stdout);
 }
@@ -261,7 +308,19 @@ void Plane::sim_guidance_step()
     const auto *sim = AP::sitl();
     if (!sim) { fail("missing_simulator"); }
     state.truth_us = sim->state.timestamp_us;
+    if (pose_capture) {
+        // Captured on this same simulator thread before the frozen exchange.
+        pose_rows[count] = {sim->navpy_render_pose, state.truth_us, uint32_t(g.sysid_this_mav)};
+    }
     state.truth[0]=sim->state.latitude; state.truth[1]=sim->state.longitude; state.truth[2]=sim->state.altitude;
+    if (pose_precast) {
+        const auto &pose = sim->navpy_render_pose;
+        if (!pose.valid || !pose.sequence || !pose.physics_sequence ||
+            pose.physics_sequence != pose.expected_physics_sequence ||
+            pose.publish_us != state.truth_us) { fail("invalid_render_pose"); }
+        // Same renderer-only pose contract; do no arithmetic in this TU.
+        memcpy(state.truth, pose.precast, sizeof(pose.precast));
+    }
     state.truth[3]=sim->state.rollDeg; state.truth[4]=sim->state.pitchDeg; state.truth[5]=sim->state.yawDeg;
     const char *names[] = {"PTCH_LIM_MIN_DEG", "PTCH_LIM_MAX_DEG", "ROLL_LIMIT_DEG", "PTCH2SRV_TCONST"};
     for (unsigned i=0;i<4;i++) {

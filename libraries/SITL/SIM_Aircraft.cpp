@@ -55,6 +55,10 @@ Aircraft::Aircraft(const char *frame_str) :
 {
     // make the SIM_* variables available to simulator backends
     sitl = AP::sitl();
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && defined(__linux__)
+    const char *pose_capture = getenv("NAVPY_POSE_CAPTURE");
+    navpy_pose_capture.enabled = pose_capture && strcmp(pose_capture, "1") == 0;
+#endif
 
     set_speedup(1.0f);
 
@@ -154,6 +158,9 @@ void Aircraft::update_position(void)
     location.offset(position.x, position.y);
 
     location.alt  = static_cast<int32_t>(home.alt - position.z * 100.0f);
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && defined(__linux__)
+    navpy_pose_capture.raw(origin, home, position, location, time_now_us);
+#endif
 
 #if 0
     Vector3d pos_home = position;
@@ -434,6 +441,13 @@ void Aircraft::fill_fdm(struct sitl_fdm &fdm)
         fdm.altitude  = smoothing.location.alt * 1.0e-2;
     }
 
+
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && defined(__linux__)
+    if (navpy_pose_capture.enabled && sitl != nullptr) {
+        sitl->navpy_render_pose = navpy_pose_capture.publish(
+            time_now_us, is_smoothed, is_smoothed ? smoothing.location : location);
+    }
+#endif
 
     if (ahrs_orientation != nullptr) {
         enum Rotation imu_rotation = (enum Rotation)ahrs_orientation->get();
@@ -905,11 +919,17 @@ void Aircraft::smooth_sensors(void)
         smoothing.gyro = gyro;
         smoothing.last_update_us = now;
         smoothing.location = location;
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && defined(__linux__)
+        navpy_pose_capture.reset_smoothing();
+#endif
         printf("Smoothing reset at %.3f\n", now * 1.0e-6f);
         return;
     }
     const float delta_time = (now - smoothing.last_update_us) * 1.0e-6f;
     if (delta_time < 0 || delta_time > 0.1) {
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && defined(__linux__)
+        navpy_pose_capture.stale_smoothing();
+#endif
         return;
     }
 
@@ -980,6 +1000,9 @@ void Aircraft::smooth_sensors(void)
     smoothing.location = origin;
     smoothing.location.offset(smoothing.position.x, smoothing.position.y);
     smoothing.location.alt  = static_cast<int32_t>(home.alt - smoothing.position.z * 100.0f);
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && defined(__linux__)
+    navpy_pose_capture.smooth(origin, home, smoothing.position, smoothing.location, time_now_us);
+#endif
 
     smoothing.last_update_us = now;
 }

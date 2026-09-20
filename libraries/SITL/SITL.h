@@ -29,6 +29,9 @@
 #include "SIM_Ship.h"
 #include "SIM_SlungPayload.h"
 #include "SIM_CPA.h"
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && defined(__linux__)
+#include "SIM_NavPyPose.h"
+#endif
 #include "SIM_GPS.h"
 #include "SIM_DroneCANDevice.h"
 #include "SIM_ADSB_Sagetech_MXS.h"
@@ -159,6 +162,10 @@ public:
     };
 
     struct sitl_fdm state;
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && defined(__linux__)
+    // Deliberately outside sitl_fdm: its layout is sent by multicast.
+    NavPyPoseSample navpy_render_pose{};
+#endif
 
     // throttle when motors are active
     float throttle;
