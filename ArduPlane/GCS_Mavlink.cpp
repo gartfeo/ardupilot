@@ -1,6 +1,7 @@
 #include "GCS_Mavlink.h"
 
 #include "Plane.h"
+#include "NavPyGuidanceStep.h"
 #include <AP_RPM/AP_RPM_config.h>
 #include <AP_Airspeed/AP_Airspeed_config.h>
 #include <AP_EFI/AP_EFI_config.h>
@@ -1311,6 +1312,11 @@ void GCS_MAVLINK_Plane::handle_message(const mavlink_message_t &msg)
 
 void GCS_MAVLINK_Plane::handle_set_attitude_target(const mavlink_message_t &msg)
     {
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && defined(__linux__)
+        if (NavPyGuidance::active() && !NavPyGuidance::internal_dispatch()) {
+            NavPyGuidance::fail("stray_attitude_command");
+        }
+#endif
         // Only allow companion computer (or other external controller) to
         // control attitude in GUIDED mode.  We DON'T want external control
         // in e.g., RTL, CICLE. Specifying a single mode for companion

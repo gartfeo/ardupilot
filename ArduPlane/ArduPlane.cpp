@@ -57,6 +57,7 @@ const AP_Scheduler::Task Plane::scheduler_tasks[] = {
                            // Units:   Hz      us
     FAST_TASK(ahrs_update),
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL && defined(__linux__)
+    FAST_TASK(sim_guidance_step),
     FAST_TASK(sim_companion_step),
 #endif
     FAST_TASK(update_control_mode),
@@ -64,6 +65,7 @@ const AP_Scheduler::Task Plane::scheduler_tasks[] = {
     FAST_TASK(set_servos),
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL && defined(__linux__)
     FAST_TASK(sim_companion_step_done),
+    FAST_TASK(sim_guidance_step_done),
 #endif
     SCHED_TASK(read_radio,             50,    100,   6),
     SCHED_TASK(check_short_failsafe,   50,    100,   9),
