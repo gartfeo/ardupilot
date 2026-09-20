@@ -1100,6 +1100,12 @@ private:
     void compass_save(void);
     void update_logging10(void);
     void update_logging25(void);
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && defined(__linux__)
+    void sim_guidance_step();
+    void sim_guidance_step_done();
+    void sim_companion_step();
+    void sim_companion_step_done();
+#endif
     void update_control_mode(void);
     void update_fly_forward(void);
     void update_flight_stage();

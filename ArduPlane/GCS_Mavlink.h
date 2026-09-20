@@ -14,6 +14,9 @@ public:
     using GCS_MAVLINK::GCS_MAVLINK;
 
     uint8_t sysid_my_gcs() const override;
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && defined(__linux__)
+    bool sim_guidance_attitude(const mavlink_set_attitude_target_t &target);
+#endif
 
 protected:
 
