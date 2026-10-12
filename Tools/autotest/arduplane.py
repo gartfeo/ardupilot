@@ -5,13 +5,17 @@ AP_FLAKE8_CLEAN
 '''
 
 from __future__ import print_function
+import collections
 import copy
 import math
 import os
 import signal
+import time
 
 from pymavlink import quaternion
 from pymavlink import mavutil
+from pymavlink.dialects.v10 import common as mavlink1
+from pymavlink.dialects.v20 import common as mavlink2
 
 from pymavlink.rotmat import Vector3
 
@@ -26,6 +30,7 @@ from vehicle_test_suite import WaitModeTimeout
 
 from pysim import vehicleinfo
 from pysim import util
+from pysim import hil_bridge
 
 import operator
 
@@ -33,6 +38,148 @@ import operator
 testdir = os.path.dirname(os.path.realpath(__file__))
 SITL_START_LOCATION = mavutil.location(-35.362938, 149.165085, 585, 354)
 WIND = "0,180,0.2"  # speed,direction,variance
+
+# Hardware-in-the-loop (HIL) backend tests: libraries/SITL/SIM_HIL.cpp,
+# link contract v2 in libraries/SITL/examples/HIL/readme.md.
+# SITL serial port of the HIL link (default_params/plane-hil.parm)
+HIL_SERIAL = 5
+# main-loop rate set by default_params/plane-hil.parm
+HIL_LOOP_RATE_HZ = 200
+# servo channels in HIL_ACTUATOR_CONTROLS.controls and SERVO_OUTPUT_RAW
+HIL_CONTROLS = 16
+# HIL log record interval (SIM_HIL.h LOG_RATE_HZ)
+HIL_LOG_INTERVAL_US = 100000
+# HIL log link states (SIM_HIL_Link.h HILLink::LinkState)
+HIL_LS_OK = 2
+HIL_LS_LOST = 3
+# the board reports the link LOST once the applied state is older than
+# this (HILLink::LOST_AGE_US). Outside deliberate outages a real-time
+# run must never get there: an older state means the bridge stalled.
+HIL_LOST_AGE_US = 50000
+# real time: largest fraction of main loops, outside deliberate outages,
+# that may pass without a new state. The same limit as the navpy HITL
+# run gate: more means the bridge answers late and the run is invalid.
+HIL_MAX_STALE_FRACTION = 0.05
+# HIL records this long after an outage still carry its state age
+# (AgeMx covers the interval since the previous record)
+HIL_OUTAGE_SETTLE_US = 2 * HIL_LOG_INTERVAL_US
+# wall-clock bound on waits for the bridge thread (in lockstep SITL's
+# clock may be stopped, so simulation time cannot bound them)
+HIL_BRIDGE_WAIT_S = 30
+HIL_BRIDGE_POLL_S = 0.01
+# injected states the board must reject: one from far in the future,
+# one with a latitude beyond 90 degrees
+HIL_FUTURE_US = 10000000
+HIL_BAD_LAT_E7 = 910000000
+# lockstep runs: a fixed UTC start (SITL's GPS time base, otherwise the
+# PC clock), so two runs get the same inputs
+HIL_LOCKSTEP_START_TIME_UTC = 1790000000
+# lockstep: board time at which SITL's clock is held to set AUTO and arm
+# (the EKF is ready well before), and the end of the board-time window
+# two runs are compared over (the circuit is flown by then)
+HIL_LOCKSTEP_ARM_US = 60000000
+HIL_LOCKSTEP_END_US = 180000000
+# wall-clock time for commands queued while SITL's clock is held to reach
+# its socket before the clock moves on (loopback TCP needs microseconds)
+HIL_INJECT_DELIVERY_S = 0.5
+# lockstep circuit: takeoff pitch and altitude, side of the square
+HIL_CIRCUIT_TAKEOFF_PITCH_DEG = 15
+HIL_CIRCUIT_ALT_M = 50
+HIL_CIRCUIT_SIDE_M = 400
+# lockstep circuit: the loiter after the square is reached within this
+# (simulation) time from arming; the altitude band held around it
+HIL_CIRCUIT_TIMEOUT_S = HIL_LOCKSTEP_END_US / 1e6 - HIL_LOCKSTEP_ARM_US / 1e6
+HIL_CIRCUIT_ALT_TOLERANCE_M = 15
+# lockstep: run on this long past the compared window, so the window has
+# gone through the onboard log's buffer to the file before the bridge
+# stops (and SITL's clock with it)
+HIL_LOCKSTEP_RUN_PAST_END_US = 5000000
+# lockstep circuit: the airspeed sensor must read the equivalent airspeed
+# the bridge sent. Compared as means from this long after arming (past
+# the takeoff roll) to the end of the window, the reading may differ by
+# this fraction. SIM_ARSPD_RATIO 1.99 against ARSPD_RATIO 2 (+0.25%) and
+# the zero-offset calibration at boot from noisy pressures (a few tenths
+# of a percent at cruise) stay well inside it, filter lag and noise
+# average out (measured -0.01% at 22 m/s); the double EAS2TAS division
+# (upstream b99fdd751a) read about 3% low at CMAC's 584 m
+HIL_AIRSPEED_SETTLE_US = 30000000
+HIL_AIRSPEED_MAX_RELATIVE_ERROR = 0.01
+# ... and the model must fly faster than this for the check to mean anything
+HIL_AIRSPEED_CHECK_MIN_M_S = 10.0
+# Two lockstep runs must give the same onboard log records at the same
+# board time. These record types follow the wall clock or the autotest's
+# GCS traffic (which reaches the board at wall-clock dependent board
+# times), not the vehicle:
+HIL_LOCKSTEP_LOG_TYPES_MAY_DIFFER = {
+    "MSG": "status texts, the autotest's own included, logged as they arrive",
+    "CMD": "mission items, logged when the autotest uploads them",
+    "MODE": "the start-up mode record, written again with the uploaded mission",
+    "PARM": "MIS_TOTAL, changed by the mission upload; header records",
+    "MAVC": "commands the autotest sends, e.g. its message requests",
+    "MAV": "GCS link packet counts",
+    "UART": "GCS link byte rates",
+    "DSF": "log buffer statistics of the log I/O thread",
+    "SIM2": "ASpdU, the speedup achieved over the wall clock",
+    "FMTU": "log header, written when the log I/O thread has opened the file",
+    "UNIT": "log header, written when the log I/O thread has opened the file",
+    "MULT": "log header, written when the log I/O thread has opened the file",
+    "VER": "log header, written when the log I/O thread has opened the file",
+}
+# ... and these must be present and identical in both runs
+HIL_LOCKSTEP_LOG_TYPES_MUST_MATCH = ["ATT", "POS", "IMU", "BARO", "GPS", "ARSP", "XKF1", "CTUN", "NTUN",
+                                     "TECS", "RCOU", "HIL"]
+
+# one HIL_ACTUATOR_CONTROLS seen by the bridge and the state that answered
+# it (None: not answered)
+HILFrame = collections.namedtuple("HILFrame", "time_usec mode flags controls reply")
+# one lockstep run: its frames and its onboard log
+HILRun = collections.namedtuple("HILRun", "frames log")
+
+
+class HILAutotestBridge(hil_bridge.HILBridge):
+    '''The reference HIL bridge plus what the autotest checks: a record of
+    every frame (board time, outputs, mode, flags) with the state that
+    answered it, and a freeze at a board time. In lockstep a frozen bridge
+    holds SITL's clock until release() answers the held frame, so commands
+    sent meanwhile act at the same board time in every run.'''
+
+    def __init__(self, *args, freeze_at_us=None, **kwargs):
+        super(HILAutotestBridge, self).__init__(*args, **kwargs)
+        self.frame_log = []
+        self.freeze_at_us = freeze_at_us
+        self.frozen_at_us = None
+
+    def reply_fields(self):
+        '''the HIL_STATE_QUATERNION fields of the current state, comparable'''
+        fields = hil_bridge.state_fields(self.origin, self.stepper.state())
+        fields["attitude_quaternion"] = tuple(fields["attitude_quaternion"])
+        return tuple(sorted(fields.items()))
+
+    def handle_actuators(self, msg):
+        freeze = self.freeze_at_us is not None and msg.time_usec >= self.freeze_at_us
+        if freeze:
+            self.freeze_at_us = None
+            self.hold_replies(True)
+        answered = super(HILAutotestBridge, self).handle_actuators(msg)
+        reply = self.reply_fields() if answered else None
+        if self.last_event == hil_bridge.RETRANSMIT and len(self.frame_log):
+            # the same frame again (lockstep resends after a reconnect):
+            # still one frame, answered with the same state
+            if reply is not None:
+                self.frame_log[-1] = self.frame_log[-1]._replace(reply=reply)
+        else:
+            self.frame_log.append(HILFrame(msg.time_usec, msg.mode, msg.flags, tuple(msg.controls), reply))
+        if freeze:
+            self.frozen_at_us = msg.time_usec
+        return answered
+
+    def release(self):
+        '''answer the frozen frame with its state, then answer every frame
+        again (lockstep: nothing arrives while the board waits)'''
+        self.frame_log[-1] = self.frame_log[-1]._replace(reply=self.reply_fields())
+        self.frozen_at_us = None
+        self.hold_replies(False)
+        return self.send_state()
 
 
 class AutoTestPlane(vehicle_test_suite.TestSuite):
@@ -7021,6 +7168,481 @@ class AutoTestPlane(vehicle_test_suite.TestSuite):
         self.set_parameter("RALLY_LIMIT_KM", 7)
         self.wait_text("clear: Rally too far", check_context=True)
 
+    # hardware-in-the-loop (HIL) simulator backend
+
+    def hil_bridge(self, model, port, freeze_at_us=None):
+        '''the reference HIL bridge as a TCP client of SITL's HIL port,
+        starting at SITL's home'''
+        return HILAutotestBridge(
+            "tcp:127.0.0.1:%u" % port,
+            model,
+            origin=hil_bridge.parse_origin(self.sitl_home()),
+            loop_rate_hz=HIL_LOOP_RATE_HZ,
+            freeze_at_us=freeze_at_us,
+            # the bridge thread must not write STATUSTEXTs to self.mav
+            say=lambda text: self.progress(text, send_statustext=False),
+        )
+
+    def hil_start_sitl(self, model, port, customisations=[]):
+        '''restart SITL with the HIL backend, its link on a TCP port'''
+        self.customise_SITL_commandline(
+            ["--serial%u=tcp:%u" % (HIL_SERIAL, port)] + customisations,
+            model=model,
+            defaults_filepath=self.model_defaults_filepath("hil"),
+            wipe=True,
+        )
+
+    def hil_wait_bridge(self, condition, what):
+        '''wait for the bridge thread, on the wall clock, reading the GCS
+        link meanwhile: above SIM_SPEEDUP 1 SITL holds its clock while its
+        SERIAL0 output queue is full (SITL_State::wait_clock)'''
+        tstart = time.time()
+        while not condition():
+            if time.time() - tstart > HIL_BRIDGE_WAIT_S:
+                raise NotAchievedException("HIL bridge: no %s" % what)
+            self.drain_mav(quiet=True)
+            time.sleep(HIL_BRIDGE_POLL_S)
+
+    def hil_check_frames(self, frames, lockstep):
+        '''board time strictly increases; flags carry only the lockstep bit,
+        and only in lockstep'''
+        if len(frames) == 0:
+            raise NotAchievedException("HIL bridge got no frames")
+        for (previous, frame) in zip(frames, frames[1:]):
+            if frame.time_usec <= previous.time_usec:
+                raise NotAchievedException("HIL frame time went from %u to %u us" %
+                                           (previous.time_usec, frame.time_usec))
+        want_flags = hil_bridge.LOCKSTEP_FLAG if lockstep else 0
+        bad = [f for f in frames if f.flags != want_flags]
+        if len(bad):
+            raise NotAchievedException("%u HIL frames with flags other than %u, first %s" %
+                                       (len(bad), want_flags, str(bad[0])))
+        self.progress("%u HIL frames, board time strictly increasing, flags %u" % (len(frames), want_flags))
+
+    def hil_wait_outputs_reach_bridge(self, bridge, moved_channel, unmoved_pwm, timeout=20):
+        '''the outputs in the HIL frames are the servo outputs as
+        SERVO_OUTPUT_RAW reports them (16 channels), once moved_channel
+        has left unmoved_pwm'''
+        tstart = self.get_sim_time()
+        while True:
+            m = self.assert_receive_message('SERVO_OUTPUT_RAW')
+            servos = [float(getattr(m, "servo%u_raw" % (i + 1))) for i in range(HIL_CONTROLS)]
+            controls = bridge.last_controls
+            if (controls is not None and list(controls) == servos and
+                    servos[moved_channel - 1] != unmoved_pwm):
+                self.progress("HIL frame outputs equal SERVO_OUTPUT_RAW: %s" % str(servos))
+                return
+            if self.get_sim_time_cached() - tstart > timeout:
+                raise NotAchievedException("HIL outputs %s never matched SERVO_OUTPUT_RAW %s" %
+                                           (str(controls), str(servos)))
+
+    def hil_outage(self, bridge, start, stop, while_lost=None):
+        '''start() a link outage, wait for LOST, run while_lost(), stop()
+        it and wait for RECOVERED. Returns the board-time window to leave
+        out of the link-health checks.'''
+        start_us = bridge.last_time_usec
+        start()
+        self.wait_statustext("HIL: simulator state lost, holding the last one")
+        if while_lost is not None:
+            while_lost()
+        stop()
+        self.wait_statustext("HIL: simulator state recovered")
+        return (start_us, bridge.last_time_usec)
+
+    def hil_inject_bad_states(self, bridge):
+        '''Send states the board must reject, plus bytes that are no state.
+        Their time_usec is a frame the board sent and nobody answered, so
+        only their content gets them rejected. Returns (window, number of
+        states that must count as Rej).'''
+        start_us = bridge.last_time_usec
+        frames = bridge.frames
+        bridge.hold_replies(True)
+        self.hil_wait_bridge(lambda: bridge.frames >= frames + 2, "unanswered frame")
+        t = bridge.last_time_usec
+        bad_states = [
+            ("zero time", {"time_usec": 0}),
+            ("time of no frame", {"time_usec": t - 1}),
+            ("future time", {"time_usec": t + HIL_FUTURE_US}),
+            ("quaternion norm 2", {"time_usec": t, "attitude_quaternion": [2.0, 0.0, 0.0, 0.0]}),
+            ("NaN body rate", {"time_usec": t, "rollspeed": float("nan")}),
+            ("latitude beyond 90 degrees", {"time_usec": t, "lat": HIL_BAD_LAT_E7}),
+        ]
+        for (why, fields) in bad_states:
+            self.progress("HIL: injecting a state with %s" % why)
+            if not bridge.send_state(**fields):
+                raise NotAchievedException("HIL bridge could not send the state with %s" % why)
+        # no states at all: a frame with a corrupted CRC (CrcE), and good
+        # frames the board ignores (Oth): MAVLink 1, and the board's own
+        # system id
+        good = hil_bridge.state_fields(bridge.origin, bridge.stepper.state())
+        good["time_usec"] = t
+        mav2 = mavlink2.MAVLink(None, srcSystem=bridge.sysid, srcComponent=hil_bridge.BRIDGE_COMPID)
+        corrupted = bytearray(mav2.hil_state_quaternion_encode(**good).pack(mav2))
+        corrupted[-1] ^= 0xFF
+        mav1 = mavlink1.MAVLink(None, srcSystem=bridge.sysid, srcComponent=hil_bridge.BRIDGE_COMPID)
+        own_sysid = int(self.get_parameter("SYSID_THISMAV"))
+        board = mavlink2.MAVLink(None, srcSystem=own_sysid, srcComponent=hil_bridge.BRIDGE_COMPID)
+        for (why, data) in [
+                ("a corrupted CRC", corrupted),
+                ("MAVLink 1", mav1.hil_state_quaternion_encode(**good).pack(mav1)),
+                ("the board's own system id", board.hil_state_quaternion_encode(**good).pack(board)),
+        ]:
+            self.progress("HIL: injecting a frame with %s" % why)
+            if not bridge.send_raw(data):
+                raise NotAchievedException("HIL bridge could not send the frame with %s" % why)
+        bridge.hold_replies(False)
+        self.hil_wait_bridge(lambda: bridge.stats.replies > 0 and bridge.last_time_usec > t, "answered frame")
+        return ((start_us, bridge.last_time_usec), len(bad_states))
+
+    def hil_log_records(self, path, record_type="HIL"):
+        '''the records of one type (by default the HIL link records) of an
+        onboard log'''
+        dfreader = self.dfreader_for_path(path)
+        records = []
+        while True:
+            m = dfreader.recv_match(type=record_type)
+            if m is None:
+                return records
+            records.append(m)
+
+    def hil_check_link_health(self, records, outages, max_age_us, max_stale_fraction):
+        '''from the first state on and outside the outage windows: link ok,
+        no state older than max_age_us, no actuator frame dropped, at most
+        max_stale_fraction of the loops without a new state, and exactly one
+        actuator frame (written or dropped) per completed main loop'''
+        ok_times = [r.TimeUS for r in records if r.LS == HIL_LS_OK]
+        if len(ok_times) == 0:
+            raise NotAchievedException("HIL link never ok in the log")
+        first_ok_us = ok_times[0]
+
+        def checked(r):
+            if r.TimeUS <= first_ok_us + HIL_LOG_INTERVAL_US:
+                return False
+            for (start_us, end_us) in outages:
+                if start_us - HIL_LOG_INTERVAL_US <= r.TimeUS <= end_us + HIL_OUTAGE_SETTLE_US:
+                    return False
+            return True
+
+        stale = 0
+        tx = 0
+        count = 0
+        previous = None
+        for r in records:
+            if not checked(r):
+                previous = None
+                continue
+            count += 1
+            if r.LS != HIL_LS_OK:
+                raise NotAchievedException("HIL link state %u at %u us outside the outages" % (r.LS, r.TimeUS))
+            if r.AgeMx > max_age_us:
+                raise NotAchievedException("HIL state %u us old at %u us (limit %u)" % (r.AgeMx, r.TimeUS, max_age_us))
+            if previous is not None:
+                stale += r.Stale - previous.Stale
+                tx += r.Tx - previous.Tx
+                if r.TxDrop != previous.TxDrop:
+                    raise NotAchievedException("HIL actuator frames dropped at %u us" % r.TimeUS)
+                # once per completed loop, never twice and never skipped
+                # (SIM_HIL.cpp loop_completed, AP_Scheduler::loops_completed32)
+                frames = (r.Tx + r.TxDrop) - (previous.Tx + previous.TxDrop)
+                loops = r.Lp - previous.Lp
+                if frames != loops:
+                    raise NotAchievedException("HIL: %u actuator frames for %u completed main loops before %u us" %
+                                               (frames, loops, r.TimeUS))
+            previous = r
+        if tx == 0:
+            raise NotAchievedException("no HIL frames sent outside the outages")
+        if stale > max_stale_fraction * tx:
+            raise NotAchievedException("HIL: %u of %u loops without a new state (limit %.3f)" %
+                                       (stale, tx, max_stale_fraction))
+        self.progress("HIL link healthy over %u records: one frame per completed loop, "
+                      "%u of %u loops without a new state" % (count, stale, tx))
+
+    def hil_check_airspeed(self, frames, arsp, start_us, end_us):
+        '''the simulated airspeed sensor reads the equivalent airspeed the
+        bridge sent, through Aircraft::fill_fdm, the SITL HAL's pressure
+        model and AP_Airspeed: the means over a board-time window agree'''
+        sent = [dict(f.reply)["ind_airspeed"] / 100.0 for f in frames
+                if f.reply is not None and start_us <= f.time_usec <= end_us]
+        read = [r.Airspeed for r in arsp if r.I == 0 and start_us <= r.TimeUS <= end_us]
+        if len(sent) == 0 or len(read) == 0:
+            raise NotAchievedException("HIL airspeed: %u states and %u ARSP records in the window" %
+                                       (len(sent), len(read)))
+        mean_sent = sum(sent) / len(sent)
+        mean_read = sum(read) / len(read)
+        if mean_sent < HIL_AIRSPEED_CHECK_MIN_M_S:
+            raise NotAchievedException("HIL airspeed: the model flew at %.1f m/s only" % mean_sent)
+        error = mean_read / mean_sent - 1.0
+        if abs(error) > HIL_AIRSPEED_MAX_RELATIVE_ERROR:
+            raise NotAchievedException("HIL airspeed: the sensor read %.3f m/s for %.3f m/s sent (%+.2f%%)" %
+                                       (mean_read, mean_sent, 100 * error))
+        self.progress("HIL airspeed: the sensor read %.3f m/s for %.3f m/s EAS sent (%+.2f%%)" %
+                      (mean_read, mean_sent, 100 * error))
+
+    def HILBackend(self):
+        '''HIL simulator backend in real time with the reference bridge'''
+        port = self.spare_network_port()
+        bridge = self.hil_bridge(hil_bridge.StaticModel(), port)
+        self.context_collect("STATUSTEXT")
+        try:
+            self.hil_start_sitl("hil", port)
+            self.HILBackend_body(bridge)
+        finally:
+            bridge.stop()
+
+    def HILBackend_body(self, bridge):
+        self.start_subtest("No simulator: the board waits and refuses to arm")
+        self.wait_statustext("HIL: waiting for simulator on SERIAL%u" % HIL_SERIAL, check_context=True)
+        self.assert_prearm_failure("HIL: no simulator state", other_prearm_failures_fatal=False)
+
+        self.start_subtest("First state, then the vehicle arms")
+        bridge.start()
+        self.wait_statustext("HIL: first state received", check_context=True)
+        self.wait_ready_to_arm()
+        self.change_mode("MANUAL")
+        self.arm_vehicle()
+        self.hil_wait_bridge(lambda: (bridge.last_mode or 0) & hil_bridge.ARMED_FLAG,
+                             "armed bit in HIL_ACTUATOR_CONTROLS.mode")
+
+        self.start_subtest("Servo outputs reach the bridge unchanged")
+        unmoved = self.assert_receive_message('SERVO_OUTPUT_RAW').servo1_raw
+        # MANUAL passes the sticks to the outputs
+        self.set_rc_from_map({1: 1700, 2: 1300, 3: 1400})
+        self.hil_wait_outputs_reach_bridge(bridge, 1, unmoved)
+        self.set_rc_from_map({1: 1500, 2: 1500, 3: 1000})
+
+        outages = []
+        self.start_subtest("Link lost while armed: reported, the vehicle stays armed")
+
+        def still_armed():
+            if not self.armed():
+                raise NotAchievedException("HIL link loss disarmed the vehicle")
+        outages.append(self.hil_outage(bridge,
+                                       lambda: bridge.hold_replies(True),
+                                       lambda: bridge.hold_replies(False),
+                                       while_lost=still_armed))
+        self.disarm_vehicle()
+
+        self.start_subtest("Link lost while disarmed: arming refused until it recovers")
+        outages.append(self.hil_outage(
+            bridge,
+            lambda: bridge.hold_replies(True),
+            lambda: bridge.hold_replies(False),
+            while_lost=lambda: self.assert_prearm_failure("HIL: no simulator state (link lost)",
+                                                          other_prearm_failures_fatal=False)))
+        self.wait_ready_to_arm()
+
+        self.start_subtest("Bridge drops the connection and reconnects")
+        connects = bridge.stats.connects
+
+        def drop():
+            if not bridge.drop_connection():
+                raise NotAchievedException("HIL bridge did not drop its connection")
+        outages.append(self.hil_outage(bridge, drop, lambda: None))
+        if bridge.stats.connects != connects + 1:
+            raise NotAchievedException("HIL bridge connected %u times, want %u" %
+                                       (bridge.stats.connects, connects + 1))
+
+        self.start_subtest("Bad states are rejected and counted")
+        (window, rejected) = self.hil_inject_bad_states(bridge)
+        outages.append(window)
+        # the next HIL records carry the counts
+        self.delay_sim_time(1)
+        self.wait_ready_to_arm()
+
+        self.start_subtest("Frames and the HIL log")
+        self.hil_check_frames(list(bridge.frame_log), lockstep=False)
+        records = self.hil_log_records(self.current_onboard_log_filepath())
+        last = records[-1]
+        self.progress("last HIL record: %s" % str(last))
+        if last.Rx == 0 or last.Tx == 0:
+            raise NotAchievedException("HIL log: Rx %u, Tx %u" % (last.Rx, last.Tx))
+        if last.Rej != rejected:
+            raise NotAchievedException("HIL log: Rej %u, injected %u bad states" % (last.Rej, rejected))
+        if last.CrcE + last.ParE == 0:
+            raise NotAchievedException("HIL log: the corrupted frame was not counted")
+        if last.Oth < 2:
+            raise NotAchievedException("HIL log: Oth %u, injected 2 ignored frames" % last.Oth)
+        lost = [r.TimeUS for r in records if r.LS == HIL_LS_LOST]
+        if len(lost) == 0:
+            raise NotAchievedException("HIL log: link state lost never logged")
+        self.hil_check_link_health(records, outages, HIL_LOST_AGE_US, HIL_MAX_STALE_FRACTION)
+
+    def hil_wait_command_acks(self, commands, timeout=10):
+        '''every command in the COMMAND_ACK collection, accepted'''
+        tstart = self.get_sim_time()
+        while True:
+            acks = dict((m.command, m.result) for m in self.context_collection("COMMAND_ACK"))
+            if all(c in acks for c in commands):
+                break
+            if self.get_sim_time_cached() - tstart > timeout:
+                raise NotAchievedException("no COMMAND_ACK for %s (got %s)" % (str(commands), str(acks)))
+            self.mav.recv_match(type="COMMAND_ACK", blocking=True, timeout=1)
+        refused = [c for c in commands if acks[c] != mavutil.mavlink.MAV_RESULT_ACCEPTED]
+        if len(refused):
+            raise NotAchievedException("commands %s refused: %s" % (str(refused), str(acks)))
+
+    def hil_circuit_mission(self, origin):
+        '''takeoff, a square around the origin, loiter: fixed coordinates
+        from the origin, never from the vehicle's (moving) home'''
+        def item(seq, t, north, east, alt, p1=0):
+            (lat, lon) = hil_bridge.offset_latlon_e7(origin.lat_e7, origin.lon_e7, north, east)
+            if north == 0 and east == 0 and t == mavutil.mavlink.MAV_CMD_NAV_TAKEOFF:
+                (lat, lon) = (0, 0)
+            frame = mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT
+            if not self.ardupilot_stores_frame_for_cmd(t):
+                frame = mavutil.mavlink.MAV_FRAME_GLOBAL
+            return self.create_MISSION_ITEM_INT(t, p1=p1, x=lat, y=lon, z=alt, frame=frame, seq=seq)
+        side = HIL_CIRCUIT_SIDE_M
+        alt = HIL_CIRCUIT_ALT_M
+        return [
+            item(0, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, 0),    # home, replaced by the vehicle
+            item(1, mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, 0, 0, alt, p1=HIL_CIRCUIT_TAKEOFF_PITCH_DEG),
+            item(2, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, side, 0, alt),
+            item(3, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, side, side, alt),
+            item(4, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, side, alt),
+            item(5, mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0, alt),
+            item(6, mavutil.mavlink.MAV_CMD_NAV_LOITER_UNLIM, 0, 0, alt),
+        ]
+
+    def hil_lockstep_circuit(self, port):
+        '''one lockstep run with its HIL link on a TCP port: boot, mission,
+        then at a fixed board time set AUTO and arm with SITL's clock held,
+        fly the circuit; returns its frames and onboard log'''
+        bridge = self.hil_bridge(hil_bridge.KinematicPlane(), port, freeze_at_us=HIL_LOCKSTEP_ARM_US)
+        self.context_clear_collection("STATUSTEXT")
+        # in lockstep SITL waits for the bridge as soon as its HIL port opens
+        bridge.start()
+        try:
+            self.hil_start_sitl("hil:lockstep", port, customisations=[
+                # the same inputs in every run: a fixed GPS time base, and
+                # no RC packets (SITL's constant default sticks)
+                "--start-time=%u" % HIL_LOCKSTEP_START_TIME_UTC,
+                "--rc-in-port=%u" % self.spare_network_port(1),
+            ])
+            self.wait_statustext("HIL: first state received", check_context=True)
+            self.check_mission_upload_download(self.hil_circuit_mission(bridge.origin))
+
+            # the clock stops at HIL_LOCKSTEP_ARM_US; queue AUTO and arm,
+            # then let the clock run with the commands already waiting
+            self.hil_wait_bridge(lambda: bridge.frozen_at_us is not None, "frozen frame")
+            self.progress("HIL: SITL clock held at %u us: AUTO, arm" % bridge.frozen_at_us)
+            self.context_collect("COMMAND_ACK")
+            self.mav.mav.command_long_send(1, 1, mavutil.mavlink.MAV_CMD_DO_SET_MODE, 0,
+                                           mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
+                                           self.get_mode_from_mode_mapping("AUTO"), 0, 0, 0, 0, 0)
+            self.mav.mav.command_long_send(1, 1, mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM, 0,
+                                           1, 0, 0, 0, 0, 0, 0)
+            time.sleep(HIL_INJECT_DELIVERY_S)
+            if not bridge.release():
+                raise NotAchievedException("HIL bridge could not answer the held frame")
+            self.hil_wait_command_acks([mavutil.mavlink.MAV_CMD_DO_SET_MODE,
+                                        mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM])
+            self.context_stop_collecting("COMMAND_ACK")
+            self.wait_mode("AUTO")
+            self.wait_armed()
+
+            self.wait_current_waypoint(6, timeout=HIL_CIRCUIT_TIMEOUT_S)
+            self.wait_altitude(HIL_CIRCUIT_ALT_M - HIL_CIRCUIT_ALT_TOLERANCE_M,
+                               HIL_CIRCUIT_ALT_M + HIL_CIRCUIT_ALT_TOLERANCE_M,
+                               relative=True)
+            self.hil_wait_bridge(lambda: bridge.last_time_usec > HIL_LOCKSTEP_END_US + HIL_LOCKSTEP_RUN_PAST_END_US,
+                                 "frame after the window")
+            log = self.current_onboard_log_filepath()
+            self.disarm_vehicle(force=True)
+        finally:
+            bridge.stop()
+        if bridge.stepper.reinits != 0:
+            raise NotAchievedException("lockstep: the bridge saw %u board reboots" % bridge.stepper.reinits)
+        if bridge.stepper.conflicts != 0:
+            raise NotAchievedException("lockstep: %u frames repeated a board time with other content" %
+                                       bridge.stepper.conflicts)
+        frames = list(bridge.frame_log)
+        self.hil_check_frames(frames, lockstep=True)
+        unanswered = [f for f in frames if f.reply is None]
+        if len(unanswered):
+            raise NotAchievedException("lockstep: %u HIL frames unanswered, first %s" %
+                                       (len(unanswered), str(unanswered[0])))
+        records = [r for r in self.hil_log_records(log) if r.TimeUS <= HIL_LOCKSTEP_END_US]
+        # lockstep applies each reply before time moves on: no stale
+        # loop, no state older than one main loop, nothing lost or dropped
+        self.hil_check_link_health(records, [], 1000000 // HIL_LOOP_RATE_HZ, 0)
+        last = records[-1]
+        if last.Stale != 0 or last.Rej != 0 or last.TxDrop != 0:
+            raise NotAchievedException("lockstep HIL record: %s" % str(last))
+        self.hil_check_airspeed(frames, self.hil_log_records(log, "ARSP"),
+                                HIL_LOCKSTEP_ARM_US + HIL_AIRSPEED_SETTLE_US, HIL_LOCKSTEP_END_US)
+        return HILRun(frames, log)
+
+    def hil_log_messages(self, path, end_us):
+        '''the timestamped records of an onboard log up to board time
+        end_us, as {type: {TimeUS: [record bytes]}}'''
+        dfreader = self.dfreader_for_path(path)
+        ret = {}
+        while True:
+            m = dfreader.recv_msg()
+            if m is None:
+                return ret
+            if "TimeUS" not in m.get_fieldnames() or m.TimeUS > end_us:
+                continue
+            ret.setdefault(m.get_type(), {}).setdefault(m.TimeUS, []).append(m.get_msgbuf())
+
+    def hil_assert_runs_identical(self, a, b, end_us):
+        '''the same frames, replies and onboard log records up to board
+        time end_us. A log may lack the first records of a type when its
+        file opened later (the log I/O thread follows the wall clock);
+        after that, each record type is the same at every board time.'''
+        frames_a = [f for f in a.frames if f.time_usec <= end_us]
+        frames_b = [f for f in b.frames if f.time_usec <= end_us]
+        for (i, (fa, fb)) in enumerate(zip(frames_a, frames_b)):
+            if fa != fb:
+                raise NotAchievedException("lockstep runs differ at frame %u:\n%s\n%s" % (i, str(fa), str(fb)))
+        if len(frames_a) != len(frames_b):
+            raise NotAchievedException("lockstep runs: %u and %u frames" % (len(frames_a), len(frames_b)))
+        self.progress("lockstep runs: %u identical frames and replies up to %u us" % (len(frames_a), end_us))
+
+        logs_a = self.hil_log_messages(a.log, end_us)
+        logs_b = self.hil_log_messages(b.log, end_us)
+        compared = {}
+        for t in sorted(set(logs_a) | set(logs_b)):
+            if t in HIL_LOCKSTEP_LOG_TYPES_MAY_DIFFER:
+                continue
+            ra = logs_a.get(t, {})
+            rb = logs_b.get(t, {})
+            if len(ra) == 0 or len(rb) == 0:
+                raise NotAchievedException("lockstep logs: %s in one run only" % t)
+            common = set(ra) & set(rb)
+            differ = sorted(k for k in common if ra[k] != rb[k])
+            if len(differ):
+                raise NotAchievedException("lockstep logs: %s differs at %u us" % (t, differ[0]))
+            # records in one log only: allowed before the other log has any
+            late = sorted([k for k in set(ra) - set(rb) if k >= min(rb)] +
+                          [k for k in set(rb) - set(ra) if k >= min(ra)])
+            if len(late):
+                raise NotAchievedException("lockstep logs: %s at %u us in one run only" % (t, late[0]))
+            compared[t] = len(common)
+        for t in HIL_LOCKSTEP_LOG_TYPES_MUST_MATCH:
+            if compared.get(t, 0) == 0:
+                raise NotAchievedException("lockstep logs: no %s records to compare" % t)
+        self.progress("lockstep logs: %u record types, %u records identical up to %u us (%s)" %
+                      (len(compared), sum(compared.values()), end_us,
+                       ", ".join("%s %u" % (t, compared[t]) for t in HIL_LOCKSTEP_LOG_TYPES_MUST_MATCH)))
+        self.progress("lockstep logs: not compared (wall clock or GCS traffic): %s" %
+                      ", ".join(sorted(HIL_LOCKSTEP_LOG_TYPES_MAY_DIFFER)))
+
+    def HILBackendLockstep(self):
+        '''HIL backend in SITL lockstep: the kinematic toy flies a circuit, twice, identically'''
+        self.context_collect("STATUSTEXT")
+        try:
+            # each run on its own HIL port: the second bridge starts before
+            # the first SITL is stopped, and must not reach it
+            first = self.hil_lockstep_circuit(self.spare_network_port(0))
+            second = self.hil_lockstep_circuit(self.spare_network_port(2))
+        finally:
+            # without its bridge a lockstep SITL holds its clock (the
+            # contract); the autotest needs a running vehicle afterwards
+            self.reset_SITL_commandline()
+        self.hil_assert_runs_identical(first, second, HIL_LOCKSTEP_END_US)
+
     def tests(self):
         '''return list of all tests'''
         ret = []
@@ -7179,6 +7801,8 @@ class AutoTestPlane(vehicle_test_suite.TestSuite):
             self.ScriptedArmingChecksAppletEStop,
             self.ScriptedArmingChecksAppletRally,
             self.DO_CHANGE_ALTITUDE,
+            self.HILBackend,
+            self.HILBackendLockstep,
         ]
 
     def disabled_tests(self):
