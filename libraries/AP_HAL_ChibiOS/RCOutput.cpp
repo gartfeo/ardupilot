@@ -46,6 +46,15 @@
 
 #if AP_SIM_ENABLED
 #include <AP_HAL/SIMState.h>
+/*
+  Simulation on hardware: only channels in SIM_OH_MASK may drive real
+  outputs (SITL::OutputGate). A gated channel is written as
+  OutputGate::GATED_PWM (0), the value ArduPilot's own safety switch
+  uses for "no output": no pulse on a PWM pin, no frame at all on a
+  DShot channel (dshot_send skips 0), and the IOMCU, which keeps
+  receiving direct PWM frames, drives nothing either.
+ */
+#include <SITL/SIM_OutputGate.h>
 #endif
 
 #if HAL_USE_PWM == TRUE
@@ -718,15 +727,24 @@ void RCOutput::write(uint8_t chan, uint16_t period_us)
     last_sent[chan] = period_us;
 
 #if AP_SIM_ENABLED
+    // the simulator gets every output; the hardware gets "no output" on
+    // channels outside SIM_OH_MASK
     hal.simstate->pwm_output[chan] = period_us;
-    if (!(AP::sitl()->on_hardware_output_enable_mask & (1U<<chan))) {
-        return;
-    }
+    const SITL::OutputGate sim_gate = SITL::OutputGate::current();
+    period_us = sim_gate.pwm(chan, period_us);
 #endif
 
 #if HAL_WITH_IO_MCU
     // handle IO MCU channels
     if (iomcu_enabled) {
+#if AP_SIM_ENABLED
+        // keep feeding the IOMCU: without direct PWM frames it falls back
+        // to its own FMU-failsafe outputs and RC mixer (iofirmware.cpp)
+        if (!sim_gate.enabled(chan) && chan < chan_offset) {
+            // also if SIM_OH_MASK was cleared after the failsafe was set
+            iomcu.set_failsafe_pwm(1U<<chan, SITL::OutputGate::GATED_PWM);
+        }
+#endif
         iomcu.write_channel(chan, period_us);
     }
 #endif
@@ -1379,7 +1397,9 @@ void RCOutput::push(void)
  */
 bool RCOutput::enable_px4io_sbus_out(uint16_t rate_hz)
 {
-#if HAL_WITH_IO_MCU
+    // in simulation on hardware the IOMCU SBUS output stays off: one SBUS
+    // frame carries every channel, whatever SIM_OH_MASK allows
+#if HAL_WITH_IO_MCU && !AP_SIM_ENABLED
     if (iomcu_enabled) {
         return iomcu.enable_sbus_out(rate_hz);
     }
@@ -2491,6 +2511,12 @@ void RCOutput::set_failsafe_pwm(uint32_t chmask, uint16_t period_us)
 {
 #if HAL_WITH_IO_MCU
     if (iomcu_enabled) {
+#if AP_SIM_ENABLED
+        // channels outside SIM_OH_MASK output nothing in FMU failsafe either
+        const SITL::OutputGate sim_gate = SITL::OutputGate::current();
+        iomcu.set_failsafe_pwm(sim_gate.gated(chmask), SITL::OutputGate::GATED_PWM);
+        chmask = sim_gate.allowed(chmask);
+#endif
         iomcu.set_failsafe_pwm(chmask, period_us);
     }
 #endif

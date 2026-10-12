@@ -29,6 +29,11 @@
 extern AP_IOMCU iomcu;
 #endif
 
+#if AP_SIM_ENABLED
+// simulation on hardware: no DShot command reaches a channel outside SIM_OH_MASK
+#include <SITL/SIM_OutputGate.h>
+#endif
+
 using namespace ChibiOS;
 
 extern const AP_HAL::HAL& hal;
@@ -68,11 +73,22 @@ bool RCOutput::dshot_send_command(pwm_group& group, uint8_t command, uint8_t cha
     // keep the other ESCs armed rather than sending nothing
     const uint16_t zero_packet = create_dshot_packet(0, false, bdshot_telem);
     const uint16_t packet = create_dshot_packet(command, true, bdshot_telem);
+#if AP_SIM_ENABLED
+    const SITL::OutputGate sim_gate = SITL::OutputGate::current();
+#endif
 
     for (uint8_t i = 0; i < 4; i++) {
         if (!group.is_chan_enabled(i)) {
             continue;
         }
+#if AP_SIM_ENABLED
+        // simulation on hardware: a channel outside SIM_OH_MASK gets no
+        // frame at all, neither the command nor the zero packet (its
+        // buffer slot stays as cleared above: the pin stays low)
+        if (!sim_gate.enabled(group.chan[i] + chan_offset)) {
+            continue;
+        }
+#endif
 
         if (group.chan[i] == chan || chan == RCOutput::ALL_CHANNELS) {
             fill_DMA_buffer_dshot(group.dma_buffer + i, 4, packet, group.bit_width_mul);
@@ -99,11 +115,34 @@ void RCOutput::send_dshot_command(uint8_t command, uint8_t chan, uint32_t comman
     if (hal.util->get_soft_armed() && !priority) {
         return;
     }
+#if AP_SIM_ENABLED
+    // simulation on hardware: no command for a channel outside
+    // SIM_OH_MASK. A command for all channels reaches only the enabled
+    // ones (dshot_send_command, and per channel on the IOMCU below)
+    const SITL::OutputGate sim_gate = SITL::OutputGate::current();
+    if (chan != ALL_CHANNELS && !sim_gate.enabled(chan)) {
+        return;
+    }
+#endif
     // not an FMU channel
     if (chan < chan_offset || chan == ALL_CHANNELS) {
 #if HAL_WITH_IO_MCU
         if (iomcu_dshot) {
+#if AP_SIM_ENABLED
+            if (chan == ALL_CHANNELS) {
+                // the IOMCU does not know SIM_OH_MASK: address its enabled
+                // channels one by one
+                for (uint8_t i = 0; i < chan_offset; i++) {
+                    if (sim_gate.enabled(i)) {
+                        iomcu.send_dshot_command(command, i, command_timeout_ms, repeat_count, priority);
+                    }
+                }
+            } else {
+                iomcu.send_dshot_command(command, chan, command_timeout_ms, repeat_count, priority);
+            }
+#else
             iomcu.send_dshot_command(command, chan, command_timeout_ms, repeat_count, priority);
+#endif
         }
 #endif
         if (chan != ALL_CHANNELS) {

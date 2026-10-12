@@ -37,6 +37,17 @@ using namespace ChibiOS;
 extern AP_IOMCU iomcu;
 #endif
 
+#if AP_SIM_ENABLED
+/*
+  simulation on hardware: a servo channel outside SIM_OH_MASK must not
+  drive hardware as a GPIO (SERVOn_FUNCTION -1) either. init() does not
+  enable it as a GPIO, on the FMU or the IOMCU, so no GPIO user can
+  reach it; write() and toggle() drive it low if SIM_OH_MASK loses it
+  after boot (SITL::OutputGate)
+ */
+#include <SITL/SIM_OutputGate.h>
+#endif
+
 // GPIO pin table from hwdef.dat
 struct gpio_entry {
     uint8_t pin_num;
@@ -91,6 +102,9 @@ void GPIO::init()
 #if HAL_WITH_IO_MCU || HAVE_GPIO_PINS
     uint8_t chan_offset = 0;
 #endif
+#if AP_SIM_ENABLED && (HAL_WITH_IO_MCU || HAVE_GPIO_PINS)
+    const SITL::OutputGate sim_gate = SITL::OutputGate::current();
+#endif
 #if HAL_WITH_IO_MCU
     if (AP_BoardConfig::io_enabled()) {
         uint8_t GPIO_mask = 0;
@@ -99,6 +113,9 @@ void GPIO::init()
                 GPIO_mask |= 1U << i;
             }
         }
+#if AP_SIM_ENABLED
+        GPIO_mask = uint8_t(sim_gate.allowed(GPIO_mask));
+#endif
         iomcu.set_GPIO_mask(GPIO_mask);
         chan_offset = 8;
     }
@@ -108,7 +125,11 @@ void GPIO::init()
     for (uint8_t i=0; i<ARRAY_SIZE(_gpio_tab); i++) {
         struct gpio_entry *g = &_gpio_tab[i];
         if (g->pwm_num != 0) {
-            g->enabled = SRV_Channels::is_GPIO((g->pwm_num-1)+chan_offset);
+            const uint8_t servo_ch = (g->pwm_num-1)+chan_offset;
+            g->enabled = SRV_Channels::is_GPIO(servo_ch);
+#if AP_SIM_ENABLED
+            g->enabled = g->enabled && sim_gate.enabled(servo_ch);
+#endif
         }
     }
 #endif // HAVE_GPIO_PINS
@@ -251,6 +272,12 @@ uint8_t GPIO::read(uint8_t pin)
 
 void GPIO::write(uint8_t pin, uint8_t value)
 {
+#if AP_SIM_ENABLED
+    uint8_t servo_ch;
+    if (pin_to_servo_channel(pin, servo_ch)) {
+        value = SITL::OutputGate::current().gpio_level(servo_ch, value);
+    }
+#endif
     struct gpio_entry *g = gpio_by_pin_num(pin);
     if (g) {
         if (g->is_input) {
@@ -273,6 +300,13 @@ void GPIO::write(uint8_t pin, uint8_t value)
 
 void GPIO::toggle(uint8_t pin)
 {
+#if AP_SIM_ENABLED
+    uint8_t servo_ch;
+    if (pin_to_servo_channel(pin, servo_ch) && !SITL::OutputGate::current().enabled(servo_ch)) {
+        write(pin, SITL::OutputGate::GATED_GPIO_LEVEL);
+        return;
+    }
+#endif
     struct gpio_entry *g = gpio_by_pin_num(pin);
     if (g) {
         palToggleLine(g->pal_line);
