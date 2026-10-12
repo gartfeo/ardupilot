@@ -388,6 +388,7 @@ BUILD_OPTIONS = [
 
     Feature('Developer', 'KILL_IMU', 'AP_INERTIALSENSOR_KILL_IMU_ENABLED', 'Allow IMUs to be disabled at runtime', 0, None),
     Feature('Developer', 'CRASHCATCHER', 'AP_CRASHDUMP_ENABLED', 'Enable CrashCatcher', 0, None),
+    Feature('Developer', 'SIM_HIL', 'AP_SIM_HIL_ENABLED', 'Enable the hardware-in-the-loop simulator backend (simulation-on-hardware builds only, see hwdef/include/HIL.inc)', 0, None),  # noqa: E501
 
     Feature('GPS Drivers', 'UBLOX', 'AP_GPS_UBLOX_ENABLED', 'Enable U-blox GPS', 1, None),
     Feature('GPS Drivers', 'SBP2', 'AP_GPS_SBP2_ENABLED', 'Enable SBP2 GPS', 0, 'SBP'),
