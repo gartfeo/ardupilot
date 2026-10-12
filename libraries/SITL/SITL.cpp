@@ -18,6 +18,7 @@
 */
 
 #include "SITL.h"
+#include "SIM_OutputGate.h"
 
 #if AP_SIM_ENABLED
 
@@ -1849,6 +1850,12 @@ float SIM::airspeed_sensor_pressure(uint8_t instance, float eas) const
         airspeed_pressure *= -1;
     }
     return airspeed_pressure;
+}
+
+OutputGate OutputGate::current(void)
+{
+    const SIM *sim = AP::sitl();
+    return OutputGate(sim != nullptr ? uint32_t(sim->on_hardware_output_enable_mask.get()) : 0U);
 }
 
 } // namespace SITL
