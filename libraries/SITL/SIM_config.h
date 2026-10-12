@@ -51,6 +51,15 @@
 #define AP_SIM_LOWEHEISER_ENABLED AP_SIM_ENABLED && HAL_MAVLINK_BINDINGS_ENABLED
 #endif
 
+// hardware-in-the-loop backend (SIM_HIL): on in SITL, on a board only
+// when its hwdef includes hwdef/include/HIL.inc
+#ifndef AP_SIM_HIL_ENABLED
+#define AP_SIM_HIL_ENABLED (CONFIG_HAL_BOARD == HAL_BOARD_SITL && HAL_MAVLINK_BINDINGS_ENABLED)
+#endif
+#if AP_SIM_HIL_ENABLED && !(AP_SIM_ENABLED && HAL_MAVLINK_BINDINGS_ENABLED)
+#error "AP_SIM_HIL_ENABLED needs AP_SIM_ENABLED (SITL or simulation on hardware) and MAVLink"
+#endif
+
 #ifndef AP_SIM_SHIP_ENABLED
 #define AP_SIM_SHIP_ENABLED (CONFIG_HAL_BOARD == HAL_BOARD_SITL)
 #endif
