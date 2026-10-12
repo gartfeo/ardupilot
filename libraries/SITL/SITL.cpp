@@ -1814,6 +1814,43 @@ float SIM::measure_distance_at_angle_bf(const Location &location, float angle) c
     return min_dist_cm * 0.01f;
 }
 
+/*
+  differential pressure in Pa that simulated airspeed sensor instance
+  reads (state.airspeed_raw_pressure, AP_Airspeed_SITL) when the
+  vehicle flies at equivalent airspeed eas in m/s (sitl_fdm::airspeed is
+  EAS). Applies the SIM_ARSPDn_ noise, failure, blocked-tube and
+  reversed-pitot options. Shared by AP_HAL_SITL and simulation on
+  hardware so both make the same sensor reading.
+ */
+float SIM::airspeed_sensor_pressure(uint8_t instance, float eas) const
+{
+    const auto &arspd = airspeed[instance];
+    const float diff_pressure = sq(eas) / arspd.ratio;
+
+    // apply noise to the differential pressure. This emulates the way
+    // airspeed noise reduces with speed
+    float sensor_airspeed = sqrtf(fabsf(arspd.ratio*(diff_pressure + airspeed_noise(instance) * rand_float())));
+
+    // check sensor failure
+    if (is_positive(arspd.fail)) {
+        sensor_airspeed = arspd.fail;
+    }
+
+    if (!is_zero(arspd.fail_pressure)) {
+        // compute a realistic pressure report given some level of trapper air pressure in the tube and our current altitude
+        // algorithm taken from https://en.wikipedia.org/wiki/Calibrated_airspeed#Calculation_from_impact_pressure
+        float tube_pressure = fabsf(arspd.fail_pressure - AP::baro().get_pressure() + arspd.fail_pitot_pressure);
+        sensor_airspeed = 340.29409348 * sqrt(5 * (pow((tube_pressure / SSL_AIR_PRESSURE + 1), 2.0/7.0) - 1.0));
+    }
+    float airspeed_pressure = (sensor_airspeed * sensor_airspeed) / arspd.ratio;
+
+    // flip sign here for simulating reversed pitot/static connections
+    if (arspd.signflip) {
+        airspeed_pressure *= -1;
+    }
+    return airspeed_pressure;
+}
+
 } // namespace SITL
 
 namespace AP {

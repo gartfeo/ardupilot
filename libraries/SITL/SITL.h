@@ -552,6 +552,11 @@ public:
 
     float measure_distance_at_angle_bf(const Location &location, float angle) const;
 
+    // differential pressure in Pa read by simulated airspeed sensor
+    // instance at equivalent airspeed eas (m/s), shared by the SITL HAL
+    // and simulation on hardware
+    float airspeed_sensor_pressure(uint8_t instance, float eas) const;
+
     // get the apparent wind speed and direction as set by external physics backend
     float get_apparent_wind_dir() const{return state.wind_vane_apparent.direction;}
     float get_apparent_wind_spd() const{return state.wind_vane_apparent.speed;}
