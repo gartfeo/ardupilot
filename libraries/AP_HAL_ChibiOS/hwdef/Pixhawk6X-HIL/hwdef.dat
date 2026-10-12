@@ -1,0 +1,12 @@
+# Hardware-in-the-loop (HIL) firmware for a Holybro Pixhawk 6X: the
+# vehicle code runs on the real STM32H7 while a PC simulator computes the
+# vehicle motion (hwdef/include/HIL.inc). The HIL link defaults to
+# SERIAL8, the second USB CDC interface (OTG2).
+
+include ../Pixhawk6X/hwdef.dat
+include ../include/HIL.inc
+
+# short board name override (max 23 chars)
+define CHIBIOS_SHORT_BOARD_NAME "Pixhawk6XHIL"
+
+AUTOBUILD_TARGETS Plane Copter Rover

@@ -1,0 +1,34 @@
+# Defaults for hardware-in-the-loop (HIL) firmware (hwdef/include/HIL.inc).
+# Generic: nothing here depends on the airframe; servo functions, mixing,
+# loop rate and tuning belong to the simulated vehicle's own parameter
+# file. Defaults apply only to parameters not already saved on the board:
+# after flashing, reset the parameters (FORMAT_VERSION 0, reboot) so that
+# these take effect.
+
+# simulated GPS (AP_GPS_SITL); the usual default waits for a real GPS
+GPS1_TYPE        100
+# simulated airspeed sensor (AP_Airspeed_SITL)
+ARSPD_TYPE       100
+# a battery monitor would read the board's real ADC, not the simulator
+BATT_MONITOR     0
+# the IMU heater would chase the simulated IMU temperature with the real
+# heater; keep it off
+BRD_HEAT_TARG    -1
+# no real actuator output on any channel (also the SIM_OH_MASK default)
+SIM_OH_MASK      0
+
+# the simulated IMUs need no calibration, but the arming checks ask for
+# one: non-default values mark both accelerometers calibrated (as in
+# Tools/autotest/models/plane.parm)
+INS_ACCOFFS_X    0.001
+INS_ACCOFFS_Y    0.001
+INS_ACCOFFS_Z    0.001
+INS_ACCSCAL_X    1.001
+INS_ACCSCAL_Y    1.001
+INS_ACCSCAL_Z    1.001
+INS_ACC2OFFS_X   0.001
+INS_ACC2OFFS_Y   0.001
+INS_ACC2OFFS_Z   0.001
+INS_ACC2SCAL_X   1.001
+INS_ACC2SCAL_Y   1.001
+INS_ACC2SCAL_Z   1.001
