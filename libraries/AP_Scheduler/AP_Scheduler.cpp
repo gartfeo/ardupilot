@@ -308,6 +308,9 @@ void AP_Scheduler::run(uint32_t time_available)
         _spare_ticks /= 2;
         _spare_micros /= 2;
     }
+
+    // every task of this loop has run: its outputs are final
+    _loops_completed32++;
 }
 
 /*

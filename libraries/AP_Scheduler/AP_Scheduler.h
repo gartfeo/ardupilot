@@ -123,6 +123,12 @@ public:
     uint16_t ticks() const { return _tick_counter; }
     uint32_t ticks32() const { return _tick_counter32; }
 
+    // number of main loops whose tasks have all run (run() returned). A
+    // simulator that exchanges the outputs once per loop sends when this
+    // changes: unlike the tick counter, which advances before the tasks
+    // run, it never advances mid-loop, when the outputs are not final
+    uint32_t loops_completed32() const { return _loops_completed32; }
+
     // run the tasks. Call this once per 'tick'.
     // time_available is the amount of time available to run
     // tasks in microseconds
@@ -229,6 +235,9 @@ private:
     // tick() has been called
     uint16_t _tick_counter;
     uint32_t _tick_counter32;
+
+    // number of loops whose tasks have all run (loops_completed32)
+    uint32_t _loops_completed32;
 
     // tick counter at the time we last ran each task
     uint16_t *_last_run;
