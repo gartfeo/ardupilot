@@ -90,6 +90,22 @@ void AP_IOMCU::init(void)
     }
 #endif
 
+#if AP_SIM_ENABLED
+    /*
+      simulation on hardware: the IOMCU keeps its failsafe PWM, mixer,
+      GPIO outputs and SBUS output across an FMU reboot or reflash. Send
+      the failsafe page (zero until set_failsafe_pwm() sets channels in
+      SIM_OH_MASK), a disabled mixer and the GPIO page (no GPIO channel
+      outside SIM_OH_MASK, see AP_HAL_ChibiOS GPIO::init) once, and clear
+      SBUS output in the init event, so that nothing set up by earlier
+      firmware drives the outputs once this thread runs. Until then the
+      IOMCU still runs what earlier firmware left (a power cycle clears
+      it, see hwdef/Pixhawk6X-HIL/README.md).
+     */
+    pwm_out.failsafe_pwm_set++;
+    initial_event_mask |= EVENT_MASK(IOEVENT_MIXING) | EVENT_MASK(IOEVENT_GPIO);
+#endif
+
     if (!hal.scheduler->thread_create(FUNCTOR_BIND_MEMBER(&AP_IOMCU::thread_main, void), "IOMCU",
                                       1024, AP_HAL::Scheduler::PRIORITY_BOOST, 1)) {
         AP_HAL::panic("Unable to allocate IOMCU thread");
@@ -167,6 +183,15 @@ void AP_IOMCU::thread_main(void)
 #if AP_IOMCU_FORCE_ENABLE_HEATER
             if (!modify_register(PAGE_SETUP, PAGE_REG_SETUP_FEATURES, 0,
                                  P_SETUP_FEATURES_HEATER)) {
+                event_failed(mask);
+                continue;
+            }
+#endif
+#if AP_SIM_ENABLED
+            // simulation on hardware: no SBUS output (enable_sbus_out()
+            // is refused), including one left on by earlier firmware
+            if (!modify_register(PAGE_SETUP, PAGE_REG_SETUP_FEATURES,
+                                 P_SETUP_FEATURES_SBUS1_OUT, 0)) {
                 event_failed(mask);
                 continue;
             }
@@ -1211,6 +1236,11 @@ void AP_IOMCU::bind_dsm(uint8_t mode)
 bool AP_IOMCU::setup_mixing(RCMapper *rcmap, int8_t override_chan,
                             float mixing_gain, uint16_t manual_rc_mask)
 {
+#if AP_SIM_ENABLED
+    // simulation on hardware: the IOMCU must never mix RC input to the
+    // real outputs (init() clears a mixer left by earlier firmware)
+    return false;
+#endif
     if (!is_chibios_backend) {
         return false;
     }
