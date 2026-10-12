@@ -32,6 +32,13 @@
 
 #if AP_SIM_ENABLED
 #include <SITL/SITL.h>
+
+// in simulation, including simulation on hardware, only the relays in
+// SIM_OH_RELAY_MSK may reach their pin, whether GPIO or DroneCAN
+static bool sim_relay_enabled(uint8_t instance)
+{
+    return (AP::sitl()->on_hardware_relay_enable_mask & (1U << instance)) != 0;
+}
 #endif
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
@@ -367,8 +374,16 @@ void AP_Relay::init()
             set_pin_by_instance(instance, false);
         }
 
-        // Make sure any DroneCAN pin is enabled for streaming
 #if AP_RELAY_DRONECAN_ENABLED
+#if AP_SIM_ENABLED
+        // a relay set_pin_by_instance() keeps off the hardware is not
+        // streamed either: streaming sends its hardpoint command to
+        // real DroneCAN nodes
+        if (!sim_relay_enabled(instance)) {
+            continue;
+        }
+#endif
+        // Make sure any DroneCAN pin is enabled for streaming
         dronecan.enable_pin(pin);
 #endif
 
@@ -401,7 +416,7 @@ void AP_Relay::set_pin_by_instance(uint8_t instance, bool value)
     }
 
 #if AP_SIM_ENABLED
-    if (!(AP::sitl()->on_hardware_relay_enable_mask & (1U << instance))) {
+    if (!sim_relay_enabled(instance)) {
         return;
     }
 #endif
