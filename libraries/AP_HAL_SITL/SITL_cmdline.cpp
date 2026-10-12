@@ -40,6 +40,7 @@
 #include <SITL/SIM_Blimp.h>
 #include <SITL/SIM_NoVehicle.h>
 #include <SITL/SIM_StratoBlimp.h>
+#include <SITL/SIM_HIL.h>
 
 #include <AP_Filesystem/AP_Filesystem.h>
 
@@ -179,6 +180,9 @@ static const struct {
     { "JSON",               JSON::create },
     { "blimp",              Blimp::create },
     { "novehicle",          NoVehicle::create },
+#if AP_SIM_HIL_ENABLED
+    { "hil",                HIL::create },
+#endif
 #if AP_SIM_STRATOBLIMP_ENABLED
     { "stratoblimp",        StratoBlimp::create },
 #endif
