@@ -126,6 +126,9 @@ void SIMState::fdm_input_local(void)
     }
     if (_sitl) {
         sitl_model->fill_fdm(_sitl->state);
+        // differential pressure for the simulated airspeed sensors
+        // (AP_Airspeed_SITL reads state.airspeed_raw_pressure)
+        _update_airspeed(_sitl->state.airspeed);
     }
 
     // output JSON state to ride along flight controllers
@@ -268,6 +271,19 @@ void SIMState::fdm_input_local(void)
 
     _synthetic_clock_mode = true;
     _update_count++;
+}
+
+/*
+  fill the differential pressure the simulated airspeed sensors read
+  (AP_Airspeed_SITL) for equivalent airspeed eas in m/s, with the model
+  the SITL HAL uses (SITL::SIM::airspeed_sensor_pressure). The SITL
+  HAL's analog pin voltage has no use on a board.
+ */
+void SIMState::_update_airspeed(float eas)
+{
+    for (uint8_t i=0; i<AIRSPEED_MAX_SENSORS; i++) {
+        _sitl->state.airspeed_raw_pressure[i] = _sitl->airspeed_sensor_pressure(i, eas);
+    }
 }
 
 /*

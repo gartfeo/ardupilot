@@ -77,7 +77,7 @@ private:
     void set_height_agl(void);
     void _set_signal_handlers(void) const;
 
-    void _update_airspeed(float airspeed);
+    void _update_airspeed(float eas);
     void _simulator_servos(struct sitl_input &input);
     void _fdm_input_step(void);
     void fdm_input_local(void);
