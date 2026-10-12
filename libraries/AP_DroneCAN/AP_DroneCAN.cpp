@@ -60,6 +60,9 @@
 #endif
 
 #include <AP_TemperatureSensor/AP_TemperatureSensor_DroneCAN.h>
+#if AP_SIM_ENABLED && CONFIG_HAL_BOARD != HAL_BOARD_SITL
+#include <SITL/SIM_OutputGate.h>
+#endif
 
 #include <AP_RPM/RPM_DroneCAN.h>
 
@@ -941,6 +944,13 @@ void AP_DroneCAN::SRV_push_servos()
 
     uint32_t servo_armed_mask = _servo_bm & non_zero_channels;
     uint32_t esc_armed_mask = _esc_bm & non_zero_channels;
+#if AP_SIM_ENABLED && CONFIG_HAL_BOARD != HAL_BOARD_SITL
+    // simulation on hardware: only channels in SIM_OH_MASK may drive real
+    // actuators, as for PWM outputs (SITL::OutputGate)
+    const SITL::OutputGate sim_gate = SITL::OutputGate::current();
+    servo_armed_mask = sim_gate.allowed(servo_armed_mask);
+    esc_armed_mask = sim_gate.allowed(esc_armed_mask);
+#endif
     const bool safety_off = hal.util->safety_switch_state() != AP_HAL::Util::SAFETY_DISARMED;
     if (!safety_off) {
         AP_BoardConfig *boardconfig = AP_BoardConfig::get_singleton();
