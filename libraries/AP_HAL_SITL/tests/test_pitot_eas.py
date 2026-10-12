@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Check the SITL pitot EAS-to-pressure contract with the real sensor function.
+"""Check the SITL pitot EAS-to-pressure contract with the real sensor functions.
 
 Run with python3 libraries/AP_HAL_SITL/tests/test_pitot_eas.py.
-Requires g++. No simulator is launched. Only the function's environmental
-inputs are stubbed: zero noise/failure flags and a supplied density factor.
+Requires g++. No simulator is launched. Two real functions are compiled:
+SITL_State::_update_airspeed (--source) and the sensor model it calls,
+SITL::SIM::airspeed_sensor_pressure (--sim-source), which simulation on
+hardware shares. Only their environmental inputs are stubbed: zero
+noise/failure flags and a supplied density factor.
 This does not replace SITL integration tests or test the noise gate itself.
 An alternate --source permits unchanged failing/passing regression checks.
 """
@@ -38,14 +41,15 @@ struct Sensor {
     float ratio = 1.99f, fail = 0, fail_pressure = 0, fail_pitot_pressure = 0;
     float signflip = 0, offset = 2013;
 };
-struct Sim {
+struct SIM {
     Sensor airspeed[1];
     struct { float altitude = 1325; float airspeed_raw_pressure[1]; } state;
-    float airspeed_noise(int) { return 0; }
+    float airspeed_noise(uint8_t) const { return 0; }
+    float airspeed_sensor_pressure(uint8_t instance, float eas) const;
 };
 struct SITL_State {
-    Sim sim;
-    Sim* _sitl = &sim;
+    SIM sim;
+    SIM* _sitl = &sim;
     float airspeed_pin_voltage[1];
     void _update_airspeed(float);
 };
@@ -74,17 +78,23 @@ int main()
 
 
 def main():
+    libraries = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', type=Path,
-                        default=Path(__file__).resolve().parents[1] / 'sitl_airspeed.cpp')
+                        default=libraries / 'AP_HAL_SITL' / 'sitl_airspeed.cpp')
+    parser.add_argument('--sim-source', type=Path,
+                        default=libraries / 'SITL' / 'SITL.cpp')
     args = parser.parse_args()
     source = args.source.read_text()
     start = source.index('void SITL_State::_update_airspeed(')
     body = source[start:source.index('\n#endif', start)]
+    sim_source = args.sim_source.read_text()
+    sim_start = sim_source.index('float SIM::airspeed_sensor_pressure(')
+    sim_body = sim_source[sim_start:sim_source.index('\n}\n', sim_start) + 3]
     with tempfile.TemporaryDirectory(prefix='sitl-pitot-eas-') as directory:
         cpp = Path(directory) / 'pitot.cpp'
         binary = Path(directory) / 'pitot'
-        cpp.write_text(PREFIX + body + SUFFIX)
+        cpp.write_text(PREFIX + sim_body + '\n' + body + SUFFIX)
         subprocess.run(['g++', '-std=c++17', '-O2', str(cpp), '-o', str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
     print('PASS: equivalent airspeed is converted to pressure exactly once')
