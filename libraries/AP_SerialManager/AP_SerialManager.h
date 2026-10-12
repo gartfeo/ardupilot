@@ -86,7 +86,15 @@ public:
         // Reserving Serial Protocol 47 for SerialProtocol_IQ
         SerialProtocol_PPP = 48,
         SerialProtocol_IBUS_Telem = 49,                // i-BUS telemetry data, ie via sensor port of FS-iA6B
-        SerialProtocol_NumProtocols                    // must be the last value
+        SerialProtocol_NumProtocols,                   // must be the last value of the contiguous range
+
+        // Fork-local protocols. They sit outside the contiguous range
+        // that SerialProtocol_NumProtocols counts (AP_OSD's name table
+        // must match it one to one), at a value far above the
+        // upstream numbers (50 on master in 2026, growing by one or two a
+        // year) so a rebase cannot collide. SERIALn_PROTOCOL is an
+        // AP_Int8, so values stop at 127.
+        SerialProtocol_SIM_HIL = 100,                  // hardware-in-the-loop simulator link (libraries/SITL/SIM_HIL)
     };
 
     // get singleton instance
