@@ -1,0 +1,10 @@
+# Hardware-in-the-loop (HIL) backend in SITL: --model hil (real time) or
+# hil:lockstep (libraries/SITL/examples/HIL/readme.md). SITL's SERIAL5 is
+# a TCP port (5765 + 10 x instance; --serial5 moves it) that carries the
+# link to the simulator bridge, e.g. Tools/autotest/pysim/hil_bridge.py
+SERIAL5_PROTOCOL 100
+# the 200 Hz main loop the HIL link is sized for, and the reference
+# bridge's default --loop-rate-hz; Rover's own default is 50 Hz
+SCHED_LOOP_RATE 200
+# HIL log records also before arming
+LOG_DISARMED 1

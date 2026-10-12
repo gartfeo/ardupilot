@@ -208,6 +208,18 @@ class VehicleInfo(object):
                     "models/freestyle.param",
                 ],
             },
+            # hardware-in-the-loop backend (libraries/SITL/examples/HIL):
+            # the physics is an external bridge on SERIAL5
+            "hil": {
+                "waf_target": "bin/arducopter",
+                "default_params_filename": ["default_params/copter.parm", "default_params/copter-hil.parm"],
+                "external": True,
+            },
+            "hil:lockstep": {
+                "waf_target": "bin/arducopter",
+                "default_params_filename": ["default_params/copter.parm", "default_params/copter-hil.parm"],
+                "external": True,
+            },
         },
     },
     "Helicopter": {
@@ -376,6 +388,19 @@ class VehicleInfo(object):
                 "waf_target": "bin/arduplane",
                 "default_params_filename": "default_params/stratoblimp.parm",
             },
+            # hardware-in-the-loop backend (libraries/SITL/examples/HIL):
+            # the physics is an external bridge on SERIAL5, e.g.
+            # Tools/autotest/pysim/hil_bridge.py --device tcp:127.0.0.1:5765
+            "hil": {
+                "waf_target": "bin/arduplane",
+                "default_params_filename": ["models/plane.parm", "default_params/plane-hil.parm"],
+                "external": True,
+            },
+            "hil:lockstep": {
+                "waf_target": "bin/arduplane",
+                "default_params_filename": ["models/plane.parm", "default_params/plane-hil.parm"],
+                "external": True,
+            },
         },
     },
     "Rover": {
@@ -437,6 +462,18 @@ class VehicleInfo(object):
                 "waf_target": "bin/ardurover",
                 "default_params_filename": ["default_params/rover.parm",
                                             "default_params/airsim-rover.parm"],
+            },
+            # hardware-in-the-loop backend (libraries/SITL/examples/HIL):
+            # the physics is an external bridge on SERIAL5
+            "hil": {
+                "waf_target": "bin/ardurover",
+                "default_params_filename": ["default_params/rover.parm", "default_params/rover-hil.parm"],
+                "external": True,
+            },
+            "hil:lockstep": {
+                "waf_target": "bin/ardurover",
+                "default_params_filename": ["default_params/rover.parm", "default_params/rover-hil.parm"],
+                "external": True,
             },
             "calibration": {
                 "extra_mavlink_cmds": "module load sitl_calibration;",

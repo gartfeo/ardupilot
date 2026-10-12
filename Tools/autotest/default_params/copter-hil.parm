@@ -1,0 +1,8 @@
+# Hardware-in-the-loop (HIL) backend in SITL: --model hil (real time) or
+# hil:lockstep (libraries/SITL/examples/HIL/readme.md). SITL's SERIAL5 is
+# a TCP port (5765 + 10 x instance; --serial5 moves it) that carries the
+# link to the simulator bridge, e.g. Tools/autotest/pysim/hil_bridge.py
+# --loop-rate-hz 400 (Copter's default SCHED_LOOP_RATE)
+SERIAL5_PROTOCOL 100
+# HIL log records also before arming
+LOG_DISARMED 1
