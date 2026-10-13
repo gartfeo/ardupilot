@@ -16,7 +16,11 @@ namespace {
 std::atomic<uint32_t> advances{0};
 std::atomic<uint64_t> jitter_state{0};
 std::atomic<int32_t> helpers_alive{0};
-std::atomic<int32_t> helpers_parked{0};
+// Most helper threads one SITL creates (scripting, logger IO, FTP, ...).
+constexpr int32_t MAX_HELPERS = 32;
+std::atomic<uint64_t> helper_until[MAX_HELPERS];  // 0: not waiting
+std::atomic<int32_t> helper_slots{0};
+thread_local int32_t my_slot = -1;
 // Most a helper wait is stretched: enough to reorder helper wake-ups against
 // the main loop at any speedup, small enough to keep runs short.
 constexpr uint32_t MAX_HELPER_JITTER_US = 2000;
@@ -79,12 +83,33 @@ uint32_t helper_jitter_us()
 
 void helper_created() { helpers_alive++; }
 void helper_exited() { helpers_alive--; }
-void helper_parked(bool parked) { parked ? helpers_parked++ : helpers_parked--; }
+void helper_wait_begin(uint64_t until_us)
+{
+    if (my_slot < 0) {
+        my_slot = helper_slots++;
+        if (my_slot >= MAX_HELPERS) {
+            fail("helper_slots");
+        }
+    }
+    helper_until[my_slot] = until_us;
+}
 
-void wait_helpers_parked(uint64_t wall_deadline_us)
+void helper_wait_end()
+{
+    helper_until[my_slot] = 0;
+}
+
+void wait_helpers_parked(uint64_t now_us, uint64_t wall_deadline_us)
 {
     for (;;) {
-        if (helpers_parked.load() >= helpers_alive.load()) {
+        int32_t parked = 0;
+        const int32_t slots = helper_slots.load();
+        for (int32_t i = 0; i < slots && i < MAX_HELPERS; i++) {
+            if (helper_until[i].load() > now_us) {
+                parked++;
+            }
+        }
+        if (parked >= helpers_alive.load()) {
             return;
         }
         timespec t{};

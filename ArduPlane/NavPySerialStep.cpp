@@ -216,7 +216,7 @@ void Plane::navpy_serial_step()
     if (fd < 0) { connect_peer(); }
     tick++;
     // Helpers finish their work for times up to t_k before the frame.
-    HALSITL::NavPyStep::wait_helpers_parked(wall_us() + deadline_us);
+    HALSITL::NavPyStep::wait_helpers_parked(AP_HAL::micros64(), wall_us() + deadline_us);
     const uint64_t source_us = AP_HAL::micros64();
     const size_t frame_size = build_frame(uint8_t(g.sysid_this_mav), source_us);
     const uint64_t deadline = wall_us() + deadline_us;

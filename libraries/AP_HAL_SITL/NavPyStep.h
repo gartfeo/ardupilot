@@ -25,10 +25,14 @@ uint32_t helper_jitter_us();
 // and parked while they wait for sim time in wait_clock.
 void helper_created();
 void helper_exited();
-void helper_parked(bool parked);
-// Block (clock frozen) until every live helper is parked, or fail at the
-// wall deadline: helpers then do no work between ticks.
-void wait_helpers_parked(uint64_t wall_deadline_us);
+// A helper waits for sim time until until_us; it counts as parked only
+// while that deadline lies after the current sim time.
+void helper_wait_begin(uint64_t until_us);
+void helper_wait_end();
+// Block (clock frozen at now_us) until every live helper is parked with a
+// deadline after now_us, or fail at the wall deadline: a helper whose
+// wait has expired first wakes, does its work and waits again.
+void wait_helpers_parked(uint64_t now_us, uint64_t wall_deadline_us);
 
 // Abort with the invalid marker (protocol or contract fault).
 [[noreturn]] void fail(const char *reason);
