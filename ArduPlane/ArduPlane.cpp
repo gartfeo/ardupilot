@@ -55,6 +55,9 @@ overruns its allotted time
  */
 const AP_Scheduler::Task Plane::scheduler_tasks[] = {
                            // Units:   Hz      us
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && defined(__linux__)
+    FAST_TASK(navpy_serial_step),  // first: frame k carries loop k-1's bytes
+#endif
     FAST_TASK(ahrs_update),
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL && defined(__linux__)
     FAST_TASK(sim_guidance_step),

@@ -6,6 +6,7 @@
 #include "AP_HAL_SITL_Namespace.h"
 #include "HAL_SITL_Class.h"
 #include "UARTDriver.h"
+#include "NavPyStep.h"
 #include "Scheduler.h"
 #include "CANSocketIface.h"
 
@@ -158,6 +159,10 @@ void SITL_State::wait_clock(uint64_t wait_time_usec)
     while (AP_HAL::micros64() < wait_time_usec) {
         if (hal.scheduler->in_main_thread() ||
             Scheduler::from(hal.scheduler)->semaphore_wait_hack_required()) {
+            if (NavPyStep::enabled() &&
+                Scheduler::from(hal.scheduler)->semaphore_wait_hack_required()) {
+                NavPyStep::count_out_of_loop_advance();
+            }
             _fdm_input_step();
         } else {
 #ifdef CYGWIN_BUILD
@@ -176,7 +181,7 @@ void SITL_State::wait_clock(uint64_t wait_time_usec)
                 }
             }
 #endif
-            usleep(1000);
+            usleep(1000 + NavPyStep::helper_jitter_us());
         }
     }
     // check the outbound TCP queue size.  If it is too long then

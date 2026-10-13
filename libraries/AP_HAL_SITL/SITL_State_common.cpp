@@ -6,6 +6,7 @@
 #include "AP_HAL_SITL_Namespace.h"
 #include "HAL_SITL_Class.h"
 #include "UARTDriver.h"
+#include <SITL/SIM_NavPyStepPort.h>
 #include "Scheduler.h"
 #include "CANSocketIface.h"
 
@@ -27,7 +28,9 @@ using namespace HALSITL;
 #define streq(a, b) (!strcmp(a, b))
 SITL::SerialDevice *SITL_State_Common::create_serial_sim(const char *name, const char *arg, const uint8_t portNumber)
 {
-    if (streq(name, "benewake_tf02")) {
+    if (streq(name, "navpystep")) {
+        return NEW_NOTHROW SITL::NavPyStepPort(portNumber);
+    } else if (streq(name, "benewake_tf02")) {
         if (benewake_tf02 != nullptr) {
             AP_HAL::panic("Only one benewake_tf02 at a time");
         }

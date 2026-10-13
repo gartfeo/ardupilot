@@ -1101,6 +1101,7 @@ private:
     void update_logging10(void);
     void update_logging25(void);
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL && defined(__linux__)
+    void navpy_serial_step();
     void sim_guidance_step();
     void sim_guidance_step_done();
     void sim_companion_step();

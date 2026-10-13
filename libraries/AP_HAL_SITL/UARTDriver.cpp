@@ -20,6 +20,7 @@
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
 
 #include <limits.h>
+#include "NavPyStep.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -112,6 +113,12 @@ void UARTDriver::_begin(uint32_t baud, uint16_t rxSpace, uint16_t txSpace)
             _sim_serial_device = _sitlState->create_serial_sim("adsb", nullptr, _portNumber);
         } else
 #endif
+        if (HALSITL::NavPyStep::enabled() &&
+            (!strcmp(devtype, "tcp") || !strcmp(devtype, "tcpclient") ||
+             !strcmp(devtype, "udpclient") || !strcmp(devtype, "mcast") ||
+             !strcmp(devtype, "uart"))) {
+            HALSITL::NavPyStep::fail("socket_devtype");
+        }
         if (strcmp(devtype, "tcp") == 0) {
             uint16_t port = atoi(args1);
             bool wait = (args2 && strcmp(args2, "wait") == 0);
@@ -267,6 +274,7 @@ size_t UARTDriver::_write(const uint8_t *buffer, size_t size)
 {
     const auto _txspace = txspace();
     if (_txspace < size) {
+        _navpy_short_write_bytes += size - _txspace;
         size = _txspace;
     }
     if (size <= 0) {

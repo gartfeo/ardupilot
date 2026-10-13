@@ -22,6 +22,9 @@
 #include <AP_HAL/AP_HAL.h>
 
 #include "GCS.h"
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+#include <AP_HAL_SITL/NavPyStep.h>
+#endif
 
 #include <AP_Filesystem/AP_Filesystem.h>
 #include <AP_HAL/utility/sparse-endian.h>
@@ -69,6 +72,11 @@ failed:
 }
 
 void GCS_MAVLINK::handle_file_transfer_protocol(const mavlink_message_t &msg) {
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+    if (HALSITL::NavPyStep::enabled()) {
+        return;  // NavPy serial-step refuses FTP
+    }
+#endif
     if (ftp_init()) {
         mavlink_file_transfer_protocol_t packet;
         mavlink_msg_file_transfer_protocol_decode(&msg, &packet);

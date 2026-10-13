@@ -87,6 +87,7 @@ private:
     int _serial_port;
     static bool _console;
     ByteBuffer _readbuffer{16384};
+    uint32_t _navpy_short_write_bytes;  // NavPy serial-step egress drops
     ByteBuffer _writebuffer{16384};
 
     // default multicast IP and port
@@ -156,6 +157,9 @@ protected:
 
 private:
     void handle_writing_from_writebuffer_to_device();
+public:
+    uint32_t navpy_short_write_bytes() const { return _navpy_short_write_bytes; }
+private:
     void handle_reading_from_device_to_readbuffer();
 
     // statistics
