@@ -21,6 +21,15 @@ void count_out_of_loop_advance();
 // NAVPY_STEP_HELPER_JITTER_SEED (acceptance (c)); 0 when unset.
 uint32_t helper_jitter_us();
 
+// Helper threads (Scheduler::thread_create): alive from creation to exit,
+// and parked while they wait for sim time in wait_clock.
+void helper_created();
+void helper_exited();
+void helper_parked(bool parked);
+// Block (clock frozen) until every live helper is parked, or fail at the
+// wall deadline: helpers then do no work between ticks.
+void wait_helpers_parked(uint64_t wall_deadline_us);
+
 // Abort with the invalid marker (protocol or contract fault).
 [[noreturn]] void fail(const char *reason);
 

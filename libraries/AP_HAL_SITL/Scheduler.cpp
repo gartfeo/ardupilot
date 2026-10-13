@@ -3,6 +3,7 @@
 #include "AP_HAL_SITL.h"
 #include <AP_HAL_SITL/I2CDevice.h>
 #include "Scheduler.h"
+#include "NavPyStep.h"
 #include "UARTDriver.h"
 #include <sys/time.h>
 #include <fenv.h>
@@ -315,6 +316,7 @@ void *Scheduler::thread_create_trampoline(void *ctx)
     struct thread_attr *a = (struct thread_attr *)ctx;
     a->thread = pthread_self();
     a->f[0]();
+    NavPyStep::helper_exited();
     
     WITH_SEMAPHORE(_thread_sem);
     if (threads == a) {
@@ -381,7 +383,9 @@ bool Scheduler::thread_create(AP_HAL::MemberProc proc, const char *name, uint32_
         AP_HAL::panic("Failed to set stack of size %u for thread %s", alloc_stack, name);
     }
 #endif
+    NavPyStep::helper_created();  // before it runs: the gate waits for it
     if (pthread_create(&thread, &a->attr, thread_create_trampoline, a) != 0) {
+        NavPyStep::helper_exited();
         goto failed;
     }
 

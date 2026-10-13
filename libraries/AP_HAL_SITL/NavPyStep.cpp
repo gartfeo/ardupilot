@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 namespace HALSITL {
@@ -14,6 +15,8 @@ namespace NavPyStep {
 namespace {
 std::atomic<uint32_t> advances{0};
 std::atomic<uint64_t> jitter_state{0};
+std::atomic<int32_t> helpers_alive{0};
+std::atomic<int32_t> helpers_parked{0};
 // Most a helper wait is stretched: enough to reorder helper wake-ups against
 // the main loop at any speedup, small enough to keep runs short.
 constexpr uint32_t MAX_HELPER_JITTER_US = 2000;
@@ -72,6 +75,25 @@ uint32_t helper_jitter_us()
         next ^= next << 17;
     } while (!jitter_state.compare_exchange_weak(x, next));
     return uint32_t(next % (MAX_HELPER_JITTER_US + 1));
+}
+
+void helper_created() { helpers_alive++; }
+void helper_exited() { helpers_alive--; }
+void helper_parked(bool parked) { parked ? helpers_parked++ : helpers_parked--; }
+
+void wait_helpers_parked(uint64_t wall_deadline_us)
+{
+    for (;;) {
+        if (helpers_parked.load() >= helpers_alive.load()) {
+            return;
+        }
+        timespec t{};
+        clock_gettime(CLOCK_MONOTONIC, &t);
+        if (uint64_t(t.tv_sec) * 1000000 + t.tv_nsec / 1000 >= wall_deadline_us) {
+            fail("helper_gate");
+        }
+        usleep(50);
+    }
 }
 
 [[noreturn]] void fail(const char *reason)

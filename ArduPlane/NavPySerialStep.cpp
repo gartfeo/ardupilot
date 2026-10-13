@@ -128,7 +128,9 @@ void connect_peer()
 bool helpers_quiet()
 {
 #if AP_SCRIPTING_ENABLED
-    // aas_params.lua is one-shot: loaded, and no script still runs.
+    // aas_params.lua is one-shot and the only script in a lockstep root, so
+    // a nonzero loaded and a zero running checksum mean it has finished
+    // (with several scripts equal CRCs could cancel in the XOR).
     const bool scripts_done = lua_scripts::get_loaded_checksum() != 0 &&
                               lua_scripts::get_running_checksum() == 0;
 #else
@@ -164,8 +166,10 @@ size_t build_frame(uint8_t sysid, uint64_t source_us)
         state.read_buffer_bytes = uart->available();
         state.egress_dropped_bytes = uart->navpy_short_write_bytes();
         uint8_t *egress = &frame[offset + sizeof(state)];
-        // At most one wire block per tick; the rest leaves at the next tick.
         state.egress_len = step_port->drain_egress(egress, MAX_BLOCK);
+        if (step_port->egress_pending() != 0) {
+            fail("egress_overflow");  // never split one tick across frames
+        }
         memcpy(&frame[offset], &state, sizeof(state));
         offset += sizeof(state) + state.egress_len;
     }
@@ -211,6 +215,8 @@ void Plane::navpy_serial_step()
     if (sim == nullptr || !is_equal(sim->speedup.get(), 1.0f)) { fail("speedup"); }
     if (fd < 0) { connect_peer(); }
     tick++;
+    // Helpers finish their work for times up to t_k before the frame.
+    HALSITL::NavPyStep::wait_helpers_parked(wall_us() + deadline_us);
     const uint64_t source_us = AP_HAL::micros64();
     const size_t frame_size = build_frame(uint8_t(g.sysid_this_mav), source_us);
     const uint64_t deadline = wall_us() + deadline_us;
