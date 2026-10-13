@@ -19,7 +19,7 @@ std::atomic<int32_t> helpers_alive{0};
 // Most helper threads one SITL creates (scripting, logger IO, FTP, ...).
 constexpr int32_t MAX_HELPERS = 32;
 std::atomic<uint64_t> helper_until[MAX_HELPERS];  // 0: not waiting
-std::atomic<int32_t> helper_slots{0};
+std::atomic<bool> slot_used[MAX_HELPERS];
 thread_local int32_t my_slot = -1;
 // Most a helper wait is stretched: enough to reorder helper wake-ups against
 // the main loop at any speedup, small enough to keep runs short.
@@ -81,30 +81,54 @@ uint32_t helper_jitter_us()
     return uint32_t(next % (MAX_HELPER_JITTER_US + 1));
 }
 
-void helper_created() { helpers_alive++; }
-void helper_exited() { helpers_alive--; }
+void helper_created()
+{
+    if (enabled()) {
+        helpers_alive++;
+    }
+}
+
+void helper_exited()
+{
+    if (!enabled()) {
+        return;
+    }
+    if (my_slot >= 0) {  // on the exiting thread: free its slot
+        helper_until[my_slot] = 0;
+        slot_used[my_slot] = false;
+        my_slot = -1;
+    }
+    helpers_alive--;
+}
 void helper_wait_begin(uint64_t until_us)
 {
-    if (my_slot < 0) {
-        my_slot = helper_slots++;
-        if (my_slot >= MAX_HELPERS) {
-            fail("helper_slots");
+    if (!enabled()) {
+        return;
+    }
+    for (int32_t i = 0; my_slot < 0 && i < MAX_HELPERS; i++) {
+        bool expected = false;
+        if (slot_used[i].compare_exchange_strong(expected, true)) {
+            my_slot = i;
         }
+    }
+    if (my_slot < 0) {
+        fail("helper_slots");  // more live helpers than slots
     }
     helper_until[my_slot] = until_us;
 }
 
 void helper_wait_end()
 {
-    helper_until[my_slot] = 0;
+    if (enabled() && my_slot >= 0) {
+        helper_until[my_slot] = 0;
+    }
 }
 
 void wait_helpers_parked(uint64_t now_us, uint64_t wall_deadline_us)
 {
     for (;;) {
         int32_t parked = 0;
-        const int32_t slots = helper_slots.load();
-        for (int32_t i = 0; i < slots && i < MAX_HELPERS; i++) {
+        for (int32_t i = 0; i < MAX_HELPERS; i++) {
             if (helper_until[i].load() > now_us) {
                 parked++;
             }
