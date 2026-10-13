@@ -130,8 +130,16 @@ void RCOutput::init()
             uint8_t chan = group.chan[j];
             if (SRV_Channels::is_GPIO(chan+chan_offset)) {
                 group.chan[j] = CHAN_DISABLED;
-            } else if (SRV_Channels::is_alarm(chan+chan_offset)
-                || SRV_Channels::is_alarm_inverted(chan+chan_offset)) {
+            } else if ((SRV_Channels::is_alarm(chan+chan_offset)
+                || SRV_Channels::is_alarm_inverted(chan+chan_offset))
+#if AP_SIM_ENABLED
+                // simulation on hardware: a tone alarm drives its pin
+                // directly, so only a channel in SIM_OH_MASK may be one;
+                // otherwise it stays a (gated) PWM channel
+                && chan != CHAN_DISABLED
+                && SITL::OutputGate::current().enabled(chan+chan_offset)
+#endif
+                ) {
                 // alarm takes the whole timer
                 group.ch_mask = 0;
                 group.current_mode = MODE_PWM_NONE;
@@ -1972,6 +1980,17 @@ void RCOutput::dma_cancel(pwm_group& group)
 bool RCOutput::serial_setup_output(uint8_t chan, uint32_t baudrate, uint32_t chanmask)
 {
     osalDbgAssert(hal.scheduler->in_main_thread(), "serial_setup_output(): not called from main thread");
+#if AP_SIM_ENABLED
+    // simulation on hardware: no serial ESC output (BLHeli passthrough)
+    // unless SIM_OH_MASK allows the channel and every channel of chanmask,
+    // which serial output drives as well
+    {
+        const SITL::OutputGate sim_gate = SITL::OutputGate::current();
+        if (!sim_gate.enabled(chan) || sim_gate.gated(chanmask) != 0) {
+            return false;
+        }
+    }
+#endif
     // account for IOMCU channels
     chan -= chan_offset;
     chanmask >>= chan_offset;
@@ -2612,11 +2631,22 @@ bool RCOutput::set_serial_led_num_LEDs(const uint16_t chan, uint8_t num_leds, ou
 void RCOutput::fill_DMA_buffer_serial_led(pwm_group& group)
 {
     memset(group.dma_buffer, 0, group.dma_buffer_len);
+#if AP_SIM_ENABLED
+    const SITL::OutputGate sim_gate = SITL::OutputGate::current();
+#endif
     for (uint8_t j = 0; j < 4; j++) {
         if (group.serial_led_data[j] == nullptr) {
             // something very bad has happended
             continue;
         }
+#if AP_SIM_ENABLED
+        // simulation on hardware: a channel outside SIM_OH_MASK gets no
+        // LED data or clock waveform (NeoPixel, ProfiLED, Lua serialLED);
+        // its slot of the cleared buffer keeps the pin low
+        if (group.chan[j] == CHAN_DISABLED || !sim_gate.enabled(group.chan[j] + chan_offset)) {
+            continue;
+        }
+#endif
 
         if (group.current_mode == MODE_PROFILED && (group.clock_mask & 1U<<j) != 0) {
             // output clock channel

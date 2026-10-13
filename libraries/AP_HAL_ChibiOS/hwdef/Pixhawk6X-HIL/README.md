@@ -171,7 +171,10 @@ thread, the firmware drives no physical actuator output of any kind
   their instance in `SIM_OH_RELAY_MSK` (default 0 on a board).
 - Non-PWM drivers: DroneCAN servo and ESC commands are masked by
   `SIM_OH_MASK` and DroneCAN relay (hardpoint) commands by
-  `SIM_OH_RELAY_MSK`, the IOMCU SBUS output is refused and cleared, and Volz,
+  `SIM_OH_RELAY_MSK`, serial LEDs (NeoPixel, ProfiLED) send no waveform on
+  a channel outside `SIM_OH_MASK`, BLHeli serial passthrough is refused
+  unless `SIM_OH_MASK` allows every channel it drives, the IOMCU SBUS
+  output is refused and cleared, and Volz,
   SBUS servo out, Robotis, FETtec, KDECAN, PiccoloCAN, Torqeedo and the Hirth
   EFI are not built.
 

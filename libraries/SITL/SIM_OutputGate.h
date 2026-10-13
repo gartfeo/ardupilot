@@ -26,6 +26,10 @@
     GPIO output, and driven to GATED_GPIO_LEVEL if SIM_OH_MASK loses
     the channel after boot
   - DroneCAN servo and ESC commands (AP_DroneCAN::SRV_push_servos): none
+  - serial LEDs (NeoPixel, ProfiLED data and clock,
+    RCOutput::fill_DMA_buffer_serial_led): no waveform on the channel
+  - serial ESC output (BLHeli passthrough, RCOutput::serial_setup_output):
+    refused unless every channel it drives is allowed
 
   The rules are pure, so they are unit tested in SITL
   (libraries/SITL/tests/test_sim_output_gate.cpp). Their use on a board
