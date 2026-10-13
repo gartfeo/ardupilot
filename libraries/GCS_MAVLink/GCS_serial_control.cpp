@@ -24,6 +24,8 @@
 #include <AP_HAL/AP_HAL.h>
 #include "GCS.h"
 #include <AP_GPS/AP_GPS.h>
+#include <AP_SerialManager/AP_SerialManager.h>
+#include <SITL/SIM_config.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -94,6 +96,15 @@ void GCS_MAVLINK::handle_serial_control(const mavlink_message_t &msg)
         // not supported yet
         return;
     }
+#if AP_SIM_HIL_ENABLED
+    // the HIL simulator link owns its port: a GCS must not write to it,
+    // re-begin it or wait on it (a blocking write would stall the main
+    // loop whenever the simulator stops reading)
+    if (port != nullptr &&
+        port == AP::serialmanager().find_serial(AP_SerialManager::SerialProtocol_SIM_HIL, 0)) {
+        return;
+    }
+#endif
     if (stream == nullptr) {
         // this is probably very bad
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
