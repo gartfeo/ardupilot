@@ -17,6 +17,9 @@
 */
 
 #include "SIM_Aircraft.h"
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+#include <AP_HAL_SITL/NavPyStep.h>
+#endif
 
 #include <stdio.h>
 #include <sys/time.h>
@@ -282,6 +285,13 @@ void Aircraft::adjust_frame_time(float new_rate)
 void Aircraft::sync_frame_time(void)
 {
     frame_counter++;
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+    if (HALSITL::NavPyStep::enabled()) {
+        // Serial-step: the coordinator paces the run, never the wall
+        // clock (the achieved rate only feeds the SIM2 log, off here).
+        return;
+    }
+#endif
     uint64_t now = get_wall_time_us();
     uint64_t dt_us = now - last_wall_time_us;
 
