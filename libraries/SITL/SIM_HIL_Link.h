@@ -99,6 +99,9 @@ public:
     // second is far above any airframe, and the limit keeps every derived
     // sensor value (degrees/s in the IMU model) finite
     static constexpr float MAX_BODY_RATE_RADS = 100.0f;
+    // largest latitude and longitude magnitudes, degrees * 1e7
+    static constexpr int32_t MAX_LAT_E7 = 900000000;
+    static constexpr int32_t MAX_LNG_E7 = 1800000000;
     // largest altitude magnitude a Location holds (LOCATION_ALT_MAX_M)
     static constexpr int64_t ALT_LIMIT_CM = int64_t(LOCATION_ALT_MAX_M) * 100;
     // longest HIL_ACTUATOR_CONTROLS on the wire (MAVLink 2, unsigned)

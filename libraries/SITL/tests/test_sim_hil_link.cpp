@@ -423,6 +423,12 @@ TEST(HILLinkDecode, rejects_non_finite_and_out_of_range_content)
     check("absurd pitch rate", [](mavlink_hil_state_quaternion_t &s) { s.pitchspeed = 1.0e30f; });
     check("latitude 90.1", [](mavlink_hil_state_quaternion_t &s) { s.lat = 901000000; });
     check("longitude -180.1", [](mavlink_hil_state_quaternion_t &s) { s.lon = -1801000000; });
+    // INT32_MIN has no positive int32 counterpart: labs() on a 32-bit
+    // long (the board) cannot take its magnitude, a plain bound can
+    check("latitude INT32_MIN", [](mavlink_hil_state_quaternion_t &s) { s.lat = INT32_MIN; });
+    check("longitude INT32_MIN", [](mavlink_hil_state_quaternion_t &s) { s.lon = INT32_MIN; });
+    check("latitude INT32_MAX", [](mavlink_hil_state_quaternion_t &s) { s.lat = INT32_MAX; });
+    check("longitude INT32_MAX", [](mavlink_hil_state_quaternion_t &s) { s.lon = INT32_MAX; });
     check("altitude INT32_MAX mm", [](mavlink_hil_state_quaternion_t &s) { s.alt = INT32_MAX; });
     check("altitude INT32_MIN mm", [](mavlink_hil_state_quaternion_t &s) { s.alt = INT32_MIN; });
 
@@ -434,6 +440,16 @@ TEST(HILLinkDecode, rejects_non_finite_and_out_of_range_content)
     // a fast but physical rate is accepted
     s.rollspeed = HILLink::MAX_BODY_RATE_RADS;
     EXPECT_TRUE(HILLink::decode_state(s, out));
+    // the poles and the antimeridian are valid positions
+    const int32_t lat_limits[] {HILLink::MAX_LAT_E7, -HILLink::MAX_LAT_E7};
+    const int32_t lng_limits[] {HILLink::MAX_LNG_E7, -HILLink::MAX_LNG_E7};
+    for (const int32_t lat : lat_limits) {
+        for (const int32_t lng : lng_limits) {
+            s.lat = lat;
+            s.lon = lng;
+            EXPECT_TRUE(HILLink::decode_state(s, out)) << lat << " " << lng;
+        }
+    }
 }
 
 TEST_F(HILLinkTest, rejected_content_is_counted)

@@ -125,7 +125,10 @@ bool HILLink::decode_state(const mavlink_hil_state_quaternion_t &pkt, State &out
     if (fabsf(q.length() - 1.0f) > QUAT_NORM_TOLERANCE) {
         return false;
     }
-    if (!check_latlng(pkt.lat, pkt.lon)) {
+    // plain bounds, not check_latlng(): its labs() cannot take the
+    // magnitude of INT32_MIN where long is 32 bits (the board)
+    if (pkt.lat < -MAX_LAT_E7 || pkt.lat > MAX_LAT_E7 ||
+        pkt.lon < -MAX_LNG_E7 || pkt.lon > MAX_LNG_E7) {
         return false;
     }
     int32_t alt_cm;
