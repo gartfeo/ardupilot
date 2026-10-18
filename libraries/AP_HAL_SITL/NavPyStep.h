@@ -21,6 +21,13 @@ void count_out_of_loop_advance();
 // NAVPY_STEP_HELPER_JITTER_SEED (acceptance (c)); 0 when unset.
 uint32_t helper_jitter_us();
 
+// Seed the SITL's random numbers from NAVPY_STEP_RNG_SEED (decimal,
+// 1..4294967295; only in the mode), once at SITL start before any sensor
+// draw: glibc random()/rand() and get_random16. Unset, nothing changes:
+// glibc's default seed 1 and get_random16's fixed seeds, as before.
+// Contract: navpy docs/design/deterministic_dev_sim.md, section 2.
+void seed_random();
+
 // Helper threads (Scheduler::thread_create): alive from creation to exit,
 // and parked while they wait for sim time in wait_clock.
 void helper_created();

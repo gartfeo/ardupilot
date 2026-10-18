@@ -329,13 +329,22 @@ template double constrain_value<double>(const double amt, const double low, cons
 /*
   simple 16 bit random number generator
  */
+static uint32_t random16_m_z = 1234;
+static uint32_t random16_m_w = 76542;
+
 uint16_t get_random16(void)
 {
-    static uint32_t m_z = 1234;
-    static uint32_t m_w = 76542;
-    m_z = 36969 * (m_z & 0xFFFFu) + (m_z >> 16);
-    m_w = 18000 * (m_w & 0xFFFFu) + (m_w >> 16);
-    return ((m_z << 16) + m_w) & 0xFFFF;
+    random16_m_z = 36969 * (random16_m_z & 0xFFFFu) + (random16_m_z >> 16);
+    random16_m_w = 18000 * (random16_m_w & 0xFFFFu) + (random16_m_w >> 16);
+    return ((random16_m_z << 16) + random16_m_w) & 0xFFFF;
+}
+
+// Each half of the seed starts one generator. A state in 1..0xFFFF (no
+// carry) is neither 0 nor the generator's other fixed point, so it never sticks.
+void seed_random16(uint32_t seed)
+{
+    random16_m_z = (seed & 0xFFFFu) | 1u;
+    random16_m_w = (seed >> 16) | 1u;
 }
 
 

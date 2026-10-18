@@ -17,6 +17,7 @@
 #include "AnalogIn.h"
 #include "UARTDriver.h"
 #include "I2CDevice.h"
+#include "NavPyStep.h"
 #include "Storage.h"
 #include "RCInput.h"
 #include "RCOutput.h"
@@ -214,6 +215,9 @@ uint32_t HAL_SITL::get_uart_output_full_queue_count() const
 void HAL_SITL::run(int argc, char * const argv[], Callbacks* callbacks) const
 {
     assert(callbacks);
+
+    // NavPy serial-step: seed the noise before anything draws (inert unless set)
+    NavPyStep::seed_random();
 
     utilInstance.init(argc, argv);
     _sitl_state->init(argc, argv);

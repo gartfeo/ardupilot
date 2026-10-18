@@ -1,6 +1,7 @@
 #include "NavPyStep.h"
 
 #include <AP_HAL/AP_HAL.h>
+#include <AP_Math/AP_Math.h>
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
 #include <atomic>
 #include <errno.h>
@@ -79,6 +80,28 @@ uint32_t helper_jitter_us()
         next ^= next << 17;
     } while (!jitter_state.compare_exchange_weak(x, next));
     return uint32_t(next % (MAX_HELPER_JITTER_US + 1));
+}
+
+void seed_random()
+{
+    const char *value = getenv("NAVPY_STEP_RNG_SEED");
+    if (value == nullptr) {
+        return;
+    }
+    if (!enabled()) {
+        fail("rng_configuration");  // EVAL-ONLY: never outside the mode
+    }
+    char *end = nullptr;
+    errno = 0;
+    const unsigned long long n = strtoull(value, &end, 10);
+    if (errno || *value < '1' || *value > '9' || *end || n > UINT32_MAX) {
+        fail("rng_configuration");
+    }
+    // glibc's rand() is random() and srand is srandom; both are seeded so
+    // the rule holds on any libc.
+    srandom(unsigned(n));
+    srand(unsigned(n));
+    seed_random16(uint32_t(n));
 }
 
 void helper_created()

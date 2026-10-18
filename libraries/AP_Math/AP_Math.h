@@ -324,6 +324,9 @@ float throttle_curve(float thr_mid, float alpha, float thr_in);
 /* simple 16 bit random number generator */
 uint16_t get_random16(void);
 
+// restart get_random16 from a seed (NavPy serial-step SITL, NAVPY_STEP_RNG_SEED)
+void seed_random16(uint32_t seed);
+
 // generate a random float between -1 and 1, for use in SITL
 float rand_float(void);
 
