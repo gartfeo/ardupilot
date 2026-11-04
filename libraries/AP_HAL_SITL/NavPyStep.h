@@ -29,16 +29,21 @@ uint32_t helper_jitter_us();
 void seed_random();
 
 // Helper threads (Scheduler::thread_create): alive from creation to exit,
-// and parked while they wait for sim time in wait_clock.
-void helper_created();
+// and parked while they wait for sim time in wait_clock. A helper's slot is
+// taken at creation, by the creating thread, so slots (the order helpers run
+// in) do not depend on when a new thread first runs. Returns the slot, -1
+// outside the mode; a failed create gives it back.
+int32_t helper_created();
+void helper_create_failed(int32_t slot);
 void helper_exited();
 // A helper waits for sim time until until_us; it counts as parked only
 // while that deadline lies after the current sim time.
 void helper_wait_begin(uint64_t until_us);
 void helper_wait_end();
 // Block (clock frozen at now_us) until every live helper is parked with a
-// deadline after now_us, or fail at the wall deadline: a helper whose
-// wait has expired first wakes, does its work and waits again.
+// deadline after now_us, or fail at the wall deadline. The helpers whose wait
+// expired run one at a time, lowest slot first, each until it waits again or
+// exits: two helpers never run at once, so their order is fixed.
 void wait_helpers_parked(uint64_t now_us, uint64_t wall_deadline_us);
 // The main thread set the clock to now_us (Scheduler::stop_clock): wake the
 // helpers whose wait expired and hold the clock there until every helper is
@@ -46,13 +51,13 @@ void wait_helpers_parked(uint64_t now_us, uint64_t wall_deadline_us);
 // waits, at a fixed sim time, never alongside the loop.
 void clock_set(uint64_t now_us);
 // A helper's wait for sim time until_us, in place of the wall poll: it wakes
-// on clock_set, or after 1 ms of wall time to look again, then sleeps the
-// seeded jitter.
+// on clock_set, or after 1 ms of wall time to look again, and once its time
+// has come it waits for its turn; then it sleeps the seeded jitter.
 void helper_sleep(uint64_t until_us);
 // A new helper's first step, before its body: it waits for the next clock
 // step, so it never runs alongside the main thread that created it (the FTP
 // worker starts on the first FTP request, mid-loop).
-void helper_start();
+void helper_start(int32_t slot);
 
 // Abort with the invalid marker (protocol or contract fault).
 [[noreturn]] void fail(const char *reason);

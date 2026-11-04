@@ -320,7 +320,7 @@ void *Scheduler::thread_create_trampoline(void *ctx)
 {
     struct thread_attr *a = (struct thread_attr *)ctx;
     a->thread = pthread_self();
-    NavPyStep::helper_start();  // parked until the next clock step
+    NavPyStep::helper_start(a->navpy_slot);  // parked until the next clock step
     a->f[0]();
     NavPyStep::helper_exited();
     
@@ -389,9 +389,9 @@ bool Scheduler::thread_create(AP_HAL::MemberProc proc, const char *name, uint32_
         AP_HAL::panic("Failed to set stack of size %u for thread %s", alloc_stack, name);
     }
 #endif
-    NavPyStep::helper_created();  // before it runs: the gate waits for it
+    a->navpy_slot = NavPyStep::helper_created();  // before it runs: the gate waits for it
     if (pthread_create(&thread, &a->attr, thread_create_trampoline, a) != 0) {
-        NavPyStep::helper_exited();
+        NavPyStep::helper_create_failed(a->navpy_slot);
         goto failed;
     }
 

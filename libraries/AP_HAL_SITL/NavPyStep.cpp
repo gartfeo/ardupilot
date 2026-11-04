@@ -19,11 +19,13 @@ namespace NavPyStep {
 namespace {
 std::atomic<uint32_t> advances{0};
 std::atomic<uint64_t> jitter_state{0};
-std::atomic<int32_t> helpers_alive{0};
 // Most helper threads one SITL creates (scripting, logger IO, FTP, ...).
 constexpr int32_t MAX_HELPERS = 32;
 std::atomic<uint64_t> helper_until[MAX_HELPERS];  // 0: not waiting
 std::atomic<bool> slot_used[MAX_HELPERS];
+std::atomic<bool> slot_created[MAX_HELPERS];  // taken by thread_create: runs in turns
+// The slot whose helper may run now (wait_helpers_parked); -1: none.
+std::atomic<int32_t> turn{-1};
 thread_local int32_t my_slot = -1;
 // Most a helper wait is stretched: enough to reorder helper wake-ups against
 // the main loop at any speedup, small enough to keep runs short.
@@ -127,10 +129,34 @@ void seed_random()
     seed_random16(uint32_t(n));
 }
 
-void helper_created()
+int32_t helper_created()
 {
-    if (enabled()) {
-        helpers_alive++;
+    if (!enabled()) {
+        return -1;
+    }
+    for (int32_t i = 0; i < MAX_HELPERS; i++) {
+        bool expected = false;
+        if (slot_used[i].compare_exchange_strong(expected, true)) {
+            helper_until[i] = 0;  // starting: the gate waits for its first wait
+            slot_created[i] = true;
+            return i;
+        }
+    }
+    fail("helper_slots");  // more live helpers than slots
+}
+
+static void free_slot(int32_t slot)
+{
+    helper_until[slot] = 0;
+    slot_created[slot] = false;
+    slot_used[slot] = false;
+    notify_parked();
+}
+
+void helper_create_failed(int32_t slot)
+{
+    if (slot >= 0) {
+        free_slot(slot);
     }
 }
 
@@ -140,12 +166,9 @@ void helper_exited()
         return;
     }
     if (my_slot >= 0) {  // on the exiting thread: free its slot
-        helper_until[my_slot] = 0;
-        slot_used[my_slot] = false;
+        free_slot(my_slot);
         my_slot = -1;
     }
-    helpers_alive--;
-    notify_parked();
 }
 void helper_wait_begin(uint64_t until_us)
 {
@@ -176,14 +199,30 @@ void wait_helpers_parked(uint64_t now_us, uint64_t wall_deadline_us)
 {
     std::unique_lock<std::mutex> hold(gate_mutex);
     for (;;) {
-        int32_t parked = 0;
-        for (int32_t i = 0; i < MAX_HELPERS; i++) {
-            if (helper_until[i].load() > now_us) {
-                parked++;
+        // Busy: the turn's helper still runs (its wait expired or ended), or
+        // a created helper runs outside a turn (it is starting).
+        const int32_t current = turn.load();
+        bool busy = current >= 0 && slot_used[current].load() &&
+            helper_until[current].load() <= now_us;
+        int32_t next = -1;
+        for (int32_t i = 0; !busy && i < MAX_HELPERS; i++) {
+            if (!slot_used[i].load() || !slot_created[i].load()) {
+                continue;
+            }
+            const uint64_t until = helper_until[i].load();
+            if (until == 0) {
+                busy = true;
+            } else if (until <= now_us && next < 0) {
+                next = i;
             }
         }
-        if (parked >= helpers_alive.load()) {
-            return;
+        if (!busy) {
+            turn = next;
+            if (next < 0) {
+                return;
+            }
+            clock_cv.notify_all();
+            continue;  // the turn's helper's wait has expired: busy until it waits again
         }
         if (wall_now_us() >= wall_deadline_us) {
             fail("helper_gate");
@@ -205,11 +244,12 @@ void clock_set(uint64_t now_us)
     wait_helpers_parked(now_us, wall_now_us() + HELPER_GATE_WALL_US);
 }
 
-void helper_start()
+void helper_start(int32_t slot)
 {
     if (!enabled()) {
         return;
     }
+    my_slot = slot;
     const uint64_t until_us = AP_HAL::micros64() + 1;
     helper_wait_begin(until_us);
     while (AP_HAL::micros64() < until_us) {
@@ -222,8 +262,16 @@ void helper_sleep(uint64_t until_us)
 {
     {
         std::unique_lock<std::mutex> hold(gate_mutex);
-        if (AP_HAL::micros64() < until_us) {
+        const bool in_turns = my_slot >= 0 && slot_created[my_slot].load();
+        for (;;) {
+            const bool due = AP_HAL::micros64() >= until_us;
+            if (due && (!in_turns || turn.load() == my_slot)) {
+                break;  // its time has come and it is its turn
+            }
             clock_cv.wait_for(hold, std::chrono::microseconds(1000));
+            if (!due && AP_HAL::micros64() < until_us) {
+                break;  // still early: the caller looks again
+            }
         }
     }
     const uint32_t jitter = helper_jitter_us();

@@ -109,6 +109,7 @@ private:
         const uint8_t *stack_min;
         const char *name;
         pthread_t thread;
+        int32_t navpy_slot;  // NavPy serial-step helper slot, -1 outside the mode
     };
     static struct thread_attr *threads;
     static const uint8_t stackfill = 0xEB;
