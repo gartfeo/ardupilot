@@ -24,6 +24,9 @@ constexpr int32_t MAX_HELPERS = 32;
 std::atomic<uint64_t> helper_until[MAX_HELPERS];  // 0: not waiting
 std::atomic<bool> slot_used[MAX_HELPERS];
 std::atomic<bool> slot_created[MAX_HELPERS];  // taken by thread_create: runs in turns
+// A created helper's first wait ends here: the creator's clock plus 1 us, read
+// at creation, so the new thread's start time never depends on when it runs.
+std::atomic<uint64_t> start_until[MAX_HELPERS];
 // The slot whose helper may run now (wait_helpers_parked); -1: none.
 std::atomic<int32_t> turn{-1};
 thread_local int32_t my_slot = -1;
@@ -138,6 +141,7 @@ int32_t helper_created()
         bool expected = false;
         if (slot_used[i].compare_exchange_strong(expected, true)) {
             helper_until[i] = 0;  // starting: the gate waits for its first wait
+            start_until[i] = AP_HAL::micros64() + 1;
             slot_created[i] = true;
             return i;
         }
@@ -250,11 +254,11 @@ void helper_start(int32_t slot)
         return;
     }
     my_slot = slot;
-    const uint64_t until_us = AP_HAL::micros64() + 1;
+    const uint64_t until_us = slot >= 0 ? start_until[slot].load() : AP_HAL::micros64() + 1;
     helper_wait_begin(until_us);
-    while (AP_HAL::micros64() < until_us) {
+    do {  // even when that time has passed, it runs only in its turn
         helper_sleep(until_us);
-    }
+    } while (AP_HAL::micros64() < until_us);
     helper_wait_end();
 }
 
