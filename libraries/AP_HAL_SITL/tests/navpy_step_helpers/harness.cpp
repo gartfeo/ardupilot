@@ -6,6 +6,7 @@
 #include <atomic>
 #include <cstdio>
 #include <cstdlib>
+#include <string>
 #include <thread>
 #include <vector>
 std::atomic<uint64_t> harness_now_us{1000000};
@@ -15,6 +16,13 @@ static std::atomic<bool> main_running{false};
 static std::atomic<bool> stop{false};
 static std::atomic<int> faults{0};
 static std::atomic<int> done{0};
+static bool old_pattern = false;
+// Every 4th wait, the helper is descheduled for 3 ms of wall time between
+// registering its wait and waiting: the clock passes its time meanwhile.
+void harness_pause() {
+    static std::atomic<unsigned> calls{0};
+    if (calls.fetch_add(1) % 4 == 0) std::this_thread::sleep_for(std::chrono::milliseconds(3));
+}
 static void body() {
     if (inside.fetch_add(1) != 0 || main_running.load()) faults++;
     std::this_thread::sleep_for(std::chrono::microseconds(50));
@@ -24,16 +32,22 @@ static void helper(int32_t slot, uint32_t period_us) {
     NavPyStep::helper_start(slot);
     while (!stop.load()) {
         body();
-        const uint64_t until = AP_HAL::micros64() + period_us;  // as wait_clock
-        NavPyStep::helper_wait_begin(until);
-        while (AP_HAL::micros64() < until && !stop.load()) NavPyStep::helper_sleep(until);
-        NavPyStep::helper_wait_end();
+        const uint64_t until = AP_HAL::micros64() + period_us;
+        if (old_pattern) {  // wait_clock up to 98ce47d750: a clock-only check after registering
+            NavPyStep::helper_wait_begin(until);
+            harness_pause();
+            while (AP_HAL::micros64() < until) NavPyStep::helper_sleep(until);
+            NavPyStep::helper_wait_end();
+        } else {
+            NavPyStep::helper_wait(until);  // as wait_clock
+        }
     }
     NavPyStep::helper_exited();
     done++;
 }
 int main(int argc, char **argv) {
     const int steps = argc > 1 ? atoi(argv[1]) : 20000;
+    old_pattern = argc > 2 && std::string(argv[2]) == "old";
     setenv("NAVPY_SERIAL_STEP", "1", 1);
     setenv("NAVPY_STEP_HELPER_JITTER_SEED", "7", 1);
     std::vector<std::thread> threads;

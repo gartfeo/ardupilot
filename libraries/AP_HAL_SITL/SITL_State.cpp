@@ -158,9 +158,11 @@ void SITL_State::wait_clock(uint64_t wait_time_usec)
     }
     const bool helper = !hal.scheduler->in_main_thread() &&
         !Scheduler::from(hal.scheduler)->semaphore_wait_hack_required();
-    if (helper) {
-        NavPyStep::helper_wait_begin(wait_time_usec);
-    }
+    if (helper && NavPyStep::enabled()) {
+        // Parked until its time and its turn, with no clock-only check that
+        // a helper descheduled after registering could pass without a turn.
+        NavPyStep::helper_wait(wait_time_usec);
+    } else
     while (AP_HAL::micros64() < wait_time_usec) {
         if (hal.scheduler->in_main_thread() ||
             Scheduler::from(hal.scheduler)->semaphore_wait_hack_required()) {
@@ -186,15 +188,8 @@ void SITL_State::wait_clock(uint64_t wait_time_usec)
                 }
             }
 #endif
-            if (NavPyStep::enabled()) {
-                NavPyStep::helper_sleep(wait_time_usec);
-            } else {
-                usleep(1000);
-            }
+            usleep(1000);
         }
-    }
-    if (helper) {
-        NavPyStep::helper_wait_end();
     }
     // check the outbound TCP queue size.  If it is too long then
     // MAVProxy/pymavlink take too long to process packets and it ends

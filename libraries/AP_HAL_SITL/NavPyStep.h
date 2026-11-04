@@ -54,6 +54,11 @@ void clock_set(uint64_t now_us);
 // returns only once its time has come and it holds the turn (a helper outside
 // turns: once its time has come), then sleeps the seeded jitter in its turn.
 void helper_sleep(uint64_t until_us);
+// A helper's whole wait for sim time until_us (SITL_State::wait_clock,
+// helper_start): registered, then helper_sleep, then done. Never a clock-only
+// check after registering: a helper descheduled there would find its time
+// passed and run without its turn.
+void helper_wait(uint64_t until_us);
 // A new helper's first step, before its body: it waits for the next clock
 // step, so it never runs alongside the main thread that created it (the FTP
 // worker starts on the first FTP request, mid-loop).

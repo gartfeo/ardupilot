@@ -254,11 +254,16 @@ void helper_start(int32_t slot)
         return;
     }
     my_slot = slot;
-    const uint64_t until_us = slot >= 0 ? start_until[slot].load() : AP_HAL::micros64() + 1;
+    helper_wait(slot >= 0 ? start_until[slot].load() : AP_HAL::micros64() + 1);
+}
+
+void helper_wait(uint64_t until_us)
+{
     helper_wait_begin(until_us);
-    do {  // even when that time has passed, it runs only in its turn
-        helper_sleep(until_us);
-    } while (AP_HAL::micros64() < until_us);
+#ifdef NAVPY_STEP_TEST_PAUSE
+    NAVPY_STEP_TEST_PAUSE();  // tests/navpy_step_helpers: deschedule here
+#endif
+    helper_sleep(until_us);  // even when that time has passed: only in its turn
     helper_wait_end();
 }
 

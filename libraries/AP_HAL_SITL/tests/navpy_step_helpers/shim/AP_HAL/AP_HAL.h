@@ -6,3 +6,6 @@
 #define CONFIG_HAL_BOARD HAL_BOARD_SITL
 extern std::atomic<uint64_t> harness_now_us;
 namespace AP_HAL { inline uint64_t micros64() { return harness_now_us.load(); } }
+// The test pause between registering a wait and waiting (NavPyStep.cpp).
+void harness_pause();
+#define NAVPY_STEP_TEST_PAUSE harness_pause
