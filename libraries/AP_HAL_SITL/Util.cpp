@@ -1,4 +1,5 @@
 #include "Util.h"
+#include "NavPyStep.h"
 #include <sys/time.h>
 #include <AP_Param/AP_Param.h>
 #include "RCOutput.h"
@@ -34,6 +35,19 @@ uint64_t HALSITL::Util::get_hw_rtc() const
 bool HALSITL::Util::get_system_id_unformatted(uint8_t buf[], uint8_t &len)
 {
     char *cbuf = (char *)buf;
+
+    if (NavPyStep::enabled()) {
+        // NavPy serial-step: a fixed id, not the host's machine-id plus the
+        // SITL instance, so the banner and AUTOPILOT_VERSION do not depend
+        // on the host or on which eval slot (instance) ran the vehicle.
+        if (len == 0) {
+            return false;
+        }
+        strncpy(cbuf, "navpy-serial-step", len);
+        cbuf[len-1] = '\0';
+        len = strnlen(cbuf, len);
+        return true;
+    }
 
     // try first to use machine-id file. Most systems will have this
     const char *paths[] = { "/etc/machine-id", "/var/lib/dbus/machine-id" };
