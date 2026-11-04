@@ -320,6 +320,7 @@ void *Scheduler::thread_create_trampoline(void *ctx)
 {
     struct thread_attr *a = (struct thread_attr *)ctx;
     a->thread = pthread_self();
+    NavPyStep::helper_start();  // parked until the next clock step
     a->f[0]();
     NavPyStep::helper_exited();
     

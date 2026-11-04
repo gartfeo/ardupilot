@@ -205,6 +205,19 @@ void clock_set(uint64_t now_us)
     wait_helpers_parked(now_us, wall_now_us() + HELPER_GATE_WALL_US);
 }
 
+void helper_start()
+{
+    if (!enabled()) {
+        return;
+    }
+    const uint64_t until_us = AP_HAL::micros64() + 1;
+    helper_wait_begin(until_us);
+    while (AP_HAL::micros64() < until_us) {
+        helper_sleep(until_us);
+    }
+    helper_wait_end();
+}
+
 void helper_sleep(uint64_t until_us)
 {
     {

@@ -49,6 +49,10 @@ void clock_set(uint64_t now_us);
 // on clock_set, or after 1 ms of wall time to look again, then sleeps the
 // seeded jitter.
 void helper_sleep(uint64_t until_us);
+// A new helper's first step, before its body: it waits for the next clock
+// step, so it never runs alongside the main thread that created it (the FTP
+// worker starts on the first FTP request, mid-loop).
+void helper_start();
 
 // Abort with the invalid marker (protocol or contract fault).
 [[noreturn]] void fail(const char *reason);
