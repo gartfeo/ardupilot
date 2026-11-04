@@ -186,7 +186,11 @@ void SITL_State::wait_clock(uint64_t wait_time_usec)
                 }
             }
 #endif
-            usleep(1000 + NavPyStep::helper_jitter_us());
+            if (NavPyStep::enabled()) {
+                NavPyStep::helper_sleep(wait_time_usec);
+            } else {
+                usleep(1000);
+            }
         }
     }
     if (helper) {

@@ -1,7 +1,7 @@
 #pragma once
 /*
-  NavPy serial-step (EVAL-ONLY): HAL-level state shared by the UART driver,
-  the clock and MAVLink FTP. Inert unless NAVPY_SERIAL_STEP=1 is set.
+  NavPy serial-step (EVAL-ONLY): HAL-level state shared by the UART driver
+  and the clock. Inert unless NAVPY_SERIAL_STEP=1 is set.
   Contract: navpy docs/design/lockstep_contracts.md (UART, Firmware helpers).
  */
 #include <stdint.h>
@@ -40,6 +40,15 @@ void helper_wait_end();
 // deadline after now_us, or fail at the wall deadline: a helper whose
 // wait has expired first wakes, does its work and waits again.
 void wait_helpers_parked(uint64_t now_us, uint64_t wall_deadline_us);
+// The main thread set the clock to now_us (Scheduler::stop_clock): wake the
+// helpers whose wait expired and hold the clock there until every helper is
+// parked again. So a helper (the FTP worker) runs only while the main thread
+// waits, at a fixed sim time, never alongside the loop.
+void clock_set(uint64_t now_us);
+// A helper's wait for sim time until_us, in place of the wall poll: it wakes
+// on clock_set, or after 1 ms of wall time to look again, then sleeps the
+// seeded jitter.
+void helper_sleep(uint64_t until_us);
 
 // Abort with the invalid marker (protocol or contract fault).
 [[noreturn]] void fail(const char *reason);

@@ -302,6 +302,11 @@ void Scheduler::_run_io_procs()
 void Scheduler::stop_clock(uint64_t time_usec)
 {
     _stopped_clock_usec = time_usec;
+    if (in_main_thread()) {
+        // NavPy serial-step: helpers whose wait expired run now, at this
+        // time, while the main thread waits (no-op outside the mode).
+        NavPyStep::clock_set(time_usec);
+    }
     if (_sitlState->_sitl != nullptr && time_usec - _last_io_run > 10000) {
         _last_io_run = time_usec;
         _run_io_procs();

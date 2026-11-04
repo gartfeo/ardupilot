@@ -4,6 +4,9 @@
 #include <AP_Math/AP_Math.h>
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
 #include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -25,6 +28,26 @@ thread_local int32_t my_slot = -1;
 // Most a helper wait is stretched: enough to reorder helper wake-ups against
 // the main loop at any speedup, small enough to keep runs short.
 constexpr uint32_t MAX_HELPER_JITTER_US = 2000;
+// The most wall time a clock step waits for its helpers: the coordinator's
+// step deadline (STEP_DEADLINE_US), so a stuck helper is a fault, not a hang.
+constexpr uint64_t HELPER_GATE_WALL_US = 30000000;
+// Helpers wait on clock_cv for the clock; the gate waits on park_cv for them.
+std::mutex gate_mutex;
+std::condition_variable clock_cv;
+std::condition_variable park_cv;
+
+uint64_t wall_now_us()
+{
+    timespec t{};
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return uint64_t(t.tv_sec) * 1000000 + t.tv_nsec / 1000;
+}
+
+void notify_parked()
+{
+    std::lock_guard<std::mutex> hold(gate_mutex);
+    park_cv.notify_all();
+}
 
 int read_enabled()
 {
@@ -122,6 +145,7 @@ void helper_exited()
         my_slot = -1;
     }
     helpers_alive--;
+    notify_parked();
 }
 void helper_wait_begin(uint64_t until_us)
 {
@@ -138,6 +162,7 @@ void helper_wait_begin(uint64_t until_us)
         fail("helper_slots");  // more live helpers than slots
     }
     helper_until[my_slot] = until_us;
+    notify_parked();
 }
 
 void helper_wait_end()
@@ -149,6 +174,7 @@ void helper_wait_end()
 
 void wait_helpers_parked(uint64_t now_us, uint64_t wall_deadline_us)
 {
+    std::unique_lock<std::mutex> hold(gate_mutex);
     for (;;) {
         int32_t parked = 0;
         for (int32_t i = 0; i < MAX_HELPERS; i++) {
@@ -159,12 +185,37 @@ void wait_helpers_parked(uint64_t now_us, uint64_t wall_deadline_us)
         if (parked >= helpers_alive.load()) {
             return;
         }
-        timespec t{};
-        clock_gettime(CLOCK_MONOTONIC, &t);
-        if (uint64_t(t.tv_sec) * 1000000 + t.tv_nsec / 1000 >= wall_deadline_us) {
+        if (wall_now_us() >= wall_deadline_us) {
             fail("helper_gate");
         }
-        usleep(50);
+        // A park or an exit notifies; the timeout only bounds a missed one.
+        park_cv.wait_for(hold, std::chrono::microseconds(1000));
+    }
+}
+
+void clock_set(uint64_t now_us)
+{
+    if (!enabled()) {
+        return;
+    }
+    {
+        std::lock_guard<std::mutex> hold(gate_mutex);
+        clock_cv.notify_all();
+    }
+    wait_helpers_parked(now_us, wall_now_us() + HELPER_GATE_WALL_US);
+}
+
+void helper_sleep(uint64_t until_us)
+{
+    {
+        std::unique_lock<std::mutex> hold(gate_mutex);
+        if (AP_HAL::micros64() < until_us) {
+            clock_cv.wait_for(hold, std::chrono::microseconds(1000));
+        }
+    }
+    const uint32_t jitter = helper_jitter_us();
+    if (jitter != 0) {
+        usleep(jitter);
     }
 }
 
