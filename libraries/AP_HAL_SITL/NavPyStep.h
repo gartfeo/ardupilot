@@ -50,9 +50,9 @@ void wait_helpers_parked(uint64_t now_us, uint64_t wall_deadline_us);
 // parked again. So a helper (the FTP worker) runs only while the main thread
 // waits, at a fixed sim time, never alongside the loop.
 void clock_set(uint64_t now_us);
-// A helper's wait for sim time until_us, in place of the wall poll: it wakes
-// on clock_set, or after 1 ms of wall time to look again, and once its time
-// has come it waits for its turn; then it sleeps the seeded jitter.
+// A helper's wait for sim time until_us, in place of the wall poll: it
+// returns only once its time has come and it holds the turn (a helper outside
+// turns: once its time has come), then sleeps the seeded jitter in its turn.
 void helper_sleep(uint64_t until_us);
 // A new helper's first step, before its body: it waits for the next clock
 // step, so it never runs alongside the main thread that created it (the FTP

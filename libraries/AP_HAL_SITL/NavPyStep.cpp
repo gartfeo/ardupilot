@@ -272,10 +272,10 @@ void helper_sleep(uint64_t until_us)
             if (due && (!in_turns || turn.load() == my_slot)) {
                 break;  // its time has come and it is its turn
             }
+            // No early return: a helper that left here before its time and
+            // then slept its jitter unlocked could find the clock moved past
+            // its time, and run while another helper holds the turn.
             clock_cv.wait_for(hold, std::chrono::microseconds(1000));
-            if (!due && AP_HAL::micros64() < until_us) {
-                break;  // still early: the caller looks again
-            }
         }
     }
     const uint32_t jitter = helper_jitter_us();
