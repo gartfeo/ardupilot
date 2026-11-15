@@ -60,6 +60,17 @@ HIL_LOST_AGE_US = 50000
 # that may pass without a new state. The same limit as the navpy HITL
 # run gate: more means the bridge answers late and the run is invalid.
 HIL_MAX_STALE_FRACTION = 0.05
+# real time: the frames must stay spread over the wall clock for as long
+# as the link is up. With two wall-clock pacers in SITL they stayed
+# spread for the first 10 to 20 s only; then one loop in seven sent its
+# frame before the reply to the previous one could arrive (SIM_HIL.cpp
+# pace_realtime_frame). The link outages of this test did not bring the
+# spread back. A fault that sets in that late can average out under the
+# stale limit over a short run, so the link is held this long with
+# nothing disturbing it, and the end of the hold must meet the limits on
+# its own.
+HIL_PACING_HOLD_S = 120
+HIL_PACING_TAIL_S = 30
 # HIL records this long after an outage still carry its state age
 # (AgeMx covers the interval since the previous record)
 HIL_OUTAGE_SETTLE_US = 2 * HIL_LOG_INTERVAL_US
@@ -7445,6 +7456,11 @@ class AutoTestPlane(vehicle_test_suite.TestSuite):
         self.start_subtest("Bad states are rejected and counted")
         (window, rejected) = self.hil_inject_bad_states(bridge)
         outages.append(window)
+
+        self.start_subtest("A long hold with no outage: the frames stay spread over the wall clock")
+        # nothing here may stall SITL or the link: no arming, no outage
+        self.delay_sim_time(HIL_PACING_HOLD_S)
+        hold_end_us = bridge.last_time_usec
         # the next HIL records carry the counts
         self.delay_sim_time(1)
         self.wait_ready_to_arm()
@@ -7466,6 +7482,12 @@ class AutoTestPlane(vehicle_test_suite.TestSuite):
         if len(lost) == 0:
             raise NotAchievedException("HIL log: link state lost never logged")
         self.hil_check_link_health(records, outages, HIL_LOST_AGE_US, HIL_MAX_STALE_FRACTION)
+        if last.TimeUS < hold_end_us:
+            raise NotAchievedException("HIL log ends at %u us, before the end of the hold at %u us" %
+                                       (last.TimeUS, hold_end_us))
+        tail = [r for r in records if hold_end_us - HIL_PACING_TAIL_S * 1000000 <= r.TimeUS <= hold_end_us]
+        self.progress("the last %u s of the hold" % HIL_PACING_TAIL_S)
+        self.hil_check_link_health(tail, [], HIL_LOST_AGE_US, HIL_MAX_STALE_FRACTION)
 
     def hil_wait_command_acks(self, commands, timeout=10):
         '''every command in the COMMAND_ACK collection, accepted'''
