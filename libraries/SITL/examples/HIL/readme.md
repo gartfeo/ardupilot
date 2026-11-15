@@ -265,7 +265,10 @@ In SITL real-time mode each frame waits until the wall clock reaches its board
 time, as on a board. Without that, SITL would run physics steps in bursts of
 at least 5 ms (`Aircraft::sync_frame_time`), so at 200 Hz two loops could end
 at the same wall-clock instant and every seventh loop would see no new state.
-With it, late replies in SITL are the bridge's, as on a board.
+With it, late replies in SITL are the bridge's, as on a board. From the first
+frame on, the frames are SITL's only wall-clock pacing: `sync_frame_time` is
+switched off (`use_time_sync`), because left on it overrode the frame pacing
+after its first sleep and the bursts came back.
 
 In real-time mode late replies are not hidden. They are counted (`Stale`), and
 their age is logged (`Age`, `AgeMx`). A PC-side run gate fails the run when they
@@ -430,7 +433,11 @@ Tools/autotest/autotest.py build.Plane test.Plane.HILBackend test.Plane.HILBacke
   (`Oth`). Outside the deliberate outages, the HIL log must show `LS` ok,
   `AgeMx` below 50 ms, no `TxDrop`, at most 5% of the loops stale, and
   exactly one actuator frame per completed main loop (`Tx` plus `TxDrop`
-  against `Lp`).
+  against `Lp`). The link is then held for 120 s with nothing disturbing
+  it, and the last 30 s of that hold must meet the same limits on their
+  own: frames that stop being spread over the wall clock 10 to 20 s after
+  the start (see [Lockstep and real time](#lockstep-and-real-time)) can
+  average out under 5% over a short run.
 - `HILBackendLockstep` (lockstep at the autotest's `SIM_SPEEDUP` 100, kinematic
   model): an AUTO takeoff, a 400 m square circuit at 50 m and a loiter, flown
   twice. The inputs are kept the same in both runs: a fixed GPS time base
