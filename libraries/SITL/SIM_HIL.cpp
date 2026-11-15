@@ -218,6 +218,19 @@ void HIL::keep_realtime(void)
   the second could never see the reply to the first. A board's loops are
   spread over the wall clock; this keeps SITL's frames spread the same
   way, so late replies are the bridge's, not SITL's.
+
+  From its first frame this is SITL's only wall-clock pacing:
+  sync_frame_time is switched off (use_time_sync). The two cannot share
+  the work. This one can only delay a frame, and sync_frame_time lets the
+  wall clock run ahead of board time (it never charges the wall time
+  between its own two clock reads). Its first sleep left every later
+  frame late for its slot here, so this never slept again and the bursts
+  were back: one loop in seven sent its frame before the reply to the
+  previous one could arrive. Before the port opens no frame is paced and
+  sync_frame_time keeps SITL on the wall clock; lockstep never gets here.
+  The cost: the physics steps of a main loop that does not complete (a
+  task that waits) are no longer spread over the wall clock; the next
+  frame waits for all of them at once.
  */
 void HIL::pace_realtime_frame(uint64_t now_us)
 {
@@ -226,6 +239,7 @@ void HIL::pace_realtime_frame(uint64_t now_us)
         pace_anchored = true;
         pace_wall_anchor_us = wall_us;
         pace_board_anchor_us = now_us;
+        use_time_sync = false;
         return;
     }
     // REALTIME_SPEEDUP is 1: board and wall clock run at the same rate
@@ -479,8 +493,9 @@ void HIL::update(const struct sitl_input &input)
     update_mag_field_bf();
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-    // SITL owns its clock: advance one physics step and, in real-time
-    // mode, sleep to wall-clock time (Aircraft::time_advance, sync_frame_time)
+    // SITL owns its clock: advance one physics step. sync_frame_time
+    // keeps it to the wall clock until, in real-time mode, the frames
+    // pace SITL (pace_realtime_frame)
     time_advance();
 #else
     // on the board AP_HAL::micros64() is real time and stop_clock() is a
