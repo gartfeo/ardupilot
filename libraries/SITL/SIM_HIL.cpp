@@ -180,8 +180,8 @@ void HIL::exchange_frame(const struct sitl_input &input, uint64_t now_us)
   SITL moves serial bytes between a socket and the port buffers in its
   IO pass, every 10 ms of simulated time and after each main loop
   (HALSITL::Scheduler::stop_clock, HAL_SITL::run), all in the main
-  thread, as is this. The HIL port is also pumped on every physics step,
-  so a reply is seen as soon as it arrives, as on a board, and in
+  thread, as is this. The HIL port is also pumped at each frame, so a
+  reply that arrived is seen at the next frame, as on a board, and in
   lockstep while the clock stands still.
  */
 void HIL::pump_port(void)
@@ -481,14 +481,18 @@ void HIL::update(const struct sitl_input &input)
         update_arming_gate();
     }
 
+    // a state is applied only with a frame, once per completed loop, as
+    // on a board, whose backend runs once per loop: a reply that arrives
+    // while SITL runs the physics steps between two frames waits for the
+    // next frame, so the loop's tasks see the state a board would
     if (loop_completed()) {
         exchange_frame(input, now_us);
-    }
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-    pump_port();
+        pump_port();
 #endif
-    if (link.receive(mavlink_system.sysid)) {
-        apply_state(link.state());
+        if (link.receive(mavlink_system.sysid)) {
+            apply_state(link.state());
+        }
     }
 
     HILLink::LinkState previous;

@@ -274,7 +274,9 @@ arming ran about 360 ms of board time in 25 ms) and the next frame came that
 much late. From the first step with the port open, this is SITL's only
 wall-clock pacing: `sync_frame_time` is switched off (`use_time_sync`),
 because left on it overrode the pacing after its first sleep and the bursts
-came back.
+came back. As on a board, whose backend runs once per loop, a reply is
+applied only with the next frame, not on the physics steps between frames, so
+`Age` stays between one and two loop periods, as on a board.
 
 In real-time mode late replies are not hidden. They are counted (`Stale`), and
 their age is logged (`Age`, `AgeMx`). A PC-side run gate fails the run when they
