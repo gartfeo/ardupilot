@@ -261,14 +261,20 @@ lockstep bit when it first sees it. A bridge that withholds a reply in lockstep
 stops SITL's clock. That is the lockstep contract, not a fault: without a
 bridge a lockstep SITL does not run.
 
-In SITL real-time mode each frame waits until the wall clock reaches its board
-time, as on a board. Without that, SITL would run physics steps in bursts of
-at least 5 ms (`Aircraft::sync_frame_time`), so at 200 Hz two loops could end
-at the same wall-clock instant and every seventh loop would see no new state.
-With it, late replies in SITL are the bridge's, as on a board. From the first
-frame on, the frames are SITL's only wall-clock pacing: `sync_frame_time` is
-switched off (`use_time_sync`), because left on it overrode the frame pacing
-after its first sleep and the bursts came back.
+In SITL real-time mode each physics step waits until the wall clock reaches
+the board time it advances to, so board time never runs ahead of the wall
+clock, as on a board, and each frame leaves no earlier than its board time.
+Without that, SITL would run physics steps in bursts of at least 5 ms
+(`Aircraft::sync_frame_time`), so at 200 Hz two loops could end at the same
+wall-clock instant and every seventh loop would see no new state. With it,
+late replies in SITL are the bridge's, as on a board. Every step is held, not
+only the frames: a task that waits in the main thread runs physics steps, and
+held only at the frames such a wait raced ahead (the log file opening at
+arming ran about 360 ms of board time in 25 ms) and the next frame came that
+much late. From the first step with the port open, this is SITL's only
+wall-clock pacing: `sync_frame_time` is switched off (`use_time_sync`),
+because left on it overrode the pacing after its first sleep and the bursts
+came back.
 
 In real-time mode late replies are not hidden. They are counted (`Stale`), and
 their age is logged (`Age`, `AgeMx`). A PC-side run gate fails the run when they

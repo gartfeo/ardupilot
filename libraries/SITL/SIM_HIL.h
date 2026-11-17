@@ -79,7 +79,7 @@ private:
     static constexpr uint32_t LOCKSTEP_POLL_US = 100;
     // lockstep: console notice interval while waiting for the bridge
     static constexpr uint64_t LOCKSTEP_NOTICE_US = 2000000;
-    // real time: a frame later than its wall-clock slot by more than this
+    // real time: a step later than its wall-clock slot by more than this
     // re-anchors the pacing (SITL was paused or runs slower than real
     // time) instead of sending frames back to back to catch up
     static constexpr uint64_t REALTIME_RESYNC_US = 100000;
@@ -93,7 +93,7 @@ private:
     void write_log(uint64_t now_us);
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
     void keep_realtime(void);
-    void pace_realtime_frame(uint64_t now_us);
+    void pace_realtime_step(uint64_t board_us);
     void pump_port(void);
     void lockstep_exchange(const struct sitl_input &input, uint64_t now_us);
 

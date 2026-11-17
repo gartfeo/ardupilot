@@ -148,9 +148,9 @@ void HIL::exchange_frame(const struct sitl_input &input, uint64_t now_us)
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
     if (!lockstep && link.port() != nullptr) {
         // as on a board, this loop ends no earlier on the wall clock than
-        // its board time, and a reply that arrived meanwhile is applied
-        // before the frame counts as stale or not
-        pace_realtime_frame(now_us);
+        // its board time (pace_realtime_step held the step before), and a
+        // reply that arrived meanwhile is applied before the frame counts
+        // as stale or not
         pump_port();
         if (link.receive(mavlink_system.sysid)) {
             apply_state(link.state());
@@ -211,44 +211,54 @@ void HIL::keep_realtime(void)
 }
 
 /*
-  real time: hold each frame until the wall clock reaches its board time.
-  Aircraft::sync_frame_time sleeps only once SITL is min_sleep_time (5 ms)
-  ahead of the wall clock, so it runs physics steps in bursts longer than
-  a 200 Hz loop: two loops could end at the same wall-clock instant, and
-  the second could never see the reply to the first. A board's loops are
-  spread over the wall clock; this keeps SITL's frames spread the same
-  way, so late replies are the bridge's, not SITL's.
+  real time: hold each physics step until the wall clock reaches the
+  board time it advances to, so board time never runs ahead of the wall
+  clock, as on a board. Each frame then also leaves no earlier than its
+  board time. Aircraft::sync_frame_time sleeps only once SITL is
+  min_sleep_time (5 ms) ahead of the wall clock, so it runs physics steps
+  in bursts longer than a 200 Hz loop: two loops could end at the same
+  wall-clock instant, and the second could never see the reply to the
+  first. A board's loops are spread over the wall clock; this keeps
+  SITL's frames spread the same way, so late replies are the bridge's,
+  not SITL's.
 
-  From its first frame this is SITL's only wall-clock pacing:
-  sync_frame_time is switched off (use_time_sync). The two cannot share
-  the work. This one can only delay a frame, and sync_frame_time lets the
-  wall clock run ahead of board time (it never charges the wall time
-  between its own two clock reads). Its first sleep left every later
-  frame late for its slot here, so this never slept again and the bursts
+  Every step is held, not only the step that sends a frame: a main loop
+  that does not complete runs physics steps while a task waits in the
+  main thread (SITL_State::wait_clock), and each step advances board
+  time. Holding only the frames let such a wait race ahead of the wall
+  clock (the 1 ms delay() polling loop of AP_Logger_File's arming wait
+  ran about 360 ms of board time while the log file took about 25 ms to
+  open), and the next frame then waited for all of it at once: the
+  bridge saw a gap that long and the board reported the state lost.
+  Held per step, a wait costs its real duration in board time.
+
+  From the first step with the port open this is SITL's only wall-clock
+  pacing: sync_frame_time is switched off (use_time_sync). The two cannot
+  share the work. This one can only delay a step, and sync_frame_time
+  lets the wall clock run ahead of board time (it never charges the wall
+  time between its own two clock reads). Its first sleep left every later
+  step late for its slot here, so this never slept again and the bursts
   were back: one loop in seven sent its frame before the reply to the
-  previous one could arrive. Before the port opens no frame is paced and
-  sync_frame_time keeps SITL on the wall clock; lockstep never gets here.
-  The cost: the physics steps of a main loop that does not complete (a
-  task that waits) are no longer spread over the wall clock; the next
-  frame waits for all of them at once.
+  previous one could arrive. Before the port opens sync_frame_time keeps
+  SITL on the wall clock; lockstep never gets here.
  */
-void HIL::pace_realtime_frame(uint64_t now_us)
+void HIL::pace_realtime_step(uint64_t board_us)
 {
     const uint64_t wall_us = get_wall_time_us();
     if (!pace_anchored) {
         pace_anchored = true;
         pace_wall_anchor_us = wall_us;
-        pace_board_anchor_us = now_us;
+        pace_board_anchor_us = board_us;
         use_time_sync = false;
         return;
     }
     // REALTIME_SPEEDUP is 1: board and wall clock run at the same rate
-    const uint64_t slot_us = pace_wall_anchor_us + (now_us - pace_board_anchor_us);
+    const uint64_t slot_us = pace_wall_anchor_us + (board_us - pace_board_anchor_us);
     if (wall_us < slot_us) {
         ::usleep(slot_us - wall_us);
     } else if (wall_us - slot_us > REALTIME_RESYNC_US) {
         pace_wall_anchor_us = wall_us;
-        pace_board_anchor_us = now_us;
+        pace_board_anchor_us = board_us;
     }
 }
 
@@ -494,9 +504,14 @@ void HIL::update(const struct sitl_input &input)
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
     // SITL owns its clock: advance one physics step. sync_frame_time
-    // keeps it to the wall clock until, in real-time mode, the frames
-    // pace SITL (pace_realtime_frame)
+    // keeps it to the wall clock until, in real-time mode, the port is
+    // open; from then the step waits here for the wall clock to reach
+    // its new board time (pace_realtime_step), before the HAL clock
+    // takes that time (SITL_State::_fdm_input_step, stop_clock)
     time_advance();
+    if (!lockstep && link.port() != nullptr) {
+        pace_realtime_step(time_now_us);
+    }
 #else
     // on the board AP_HAL::micros64() is real time and stop_clock() is a
     // no-op; the state's timestamp is the board time

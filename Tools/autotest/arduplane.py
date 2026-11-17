@@ -64,7 +64,7 @@ HIL_MAX_STALE_FRACTION = 0.05
 # as the link is up. With two wall-clock pacers in SITL they stayed
 # spread for the first 10 to 20 s only; then one loop in seven sent its
 # frame before the reply to the previous one could arrive (SIM_HIL.cpp
-# pace_realtime_frame). The link outages of this test did not bring the
+# pace_realtime_step). The link outages of this test did not bring the
 # spread back. A fault that sets in that late can average out under the
 # stale limit over a short run, so the link is held this long with
 # nothing disturbing it, and the end of the hold must meet the limits on
