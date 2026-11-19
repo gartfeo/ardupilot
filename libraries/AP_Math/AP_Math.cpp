@@ -336,15 +336,25 @@ uint16_t get_random16(void)
 {
     random16_m_z = 36969 * (random16_m_z & 0xFFFFu) + (random16_m_z >> 16);
     random16_m_w = 18000 * (random16_m_w & 0xFFFFu) + (random16_m_w >> 16);
-    return ((random16_m_z << 16) + random16_m_w) & 0xFFFF;
+    // The upper half of Marsaglia's (z << 16) + w: it depends on both
+    // generators. The lower half is w's alone, so z never reached the output.
+    return uint16_t(((random16_m_z << 16) + random16_m_w) >> 16);
 }
 
-// Each half of the seed starts one generator. A state in 1..0xFFFF (no
-// carry) is neither 0 nor the generator's other fixed point, so it never sticks.
+// Every seed bit counts: murmur3's finalizer, a bijection, spreads the seed so
+// nearby seeds start far apart; then each 16-bit half starts one generator as
+// half + 1, so two seeds never share a state. A state in 1..0x10000 is neither
+// 0 nor the generator's other fixed point (multiplier * 0x10000 - 1), so it
+// never sticks.
 void seed_random16(uint32_t seed)
 {
-    random16_m_z = (seed & 0xFFFFu) | 1u;
-    random16_m_w = (seed >> 16) | 1u;
+    seed ^= seed >> 16;
+    seed *= 0x85EBCA6Bu;
+    seed ^= seed >> 13;
+    seed *= 0xC2B2AE35u;
+    seed ^= seed >> 16;
+    random16_m_z = (seed & 0xFFFFu) + 1u;
+    random16_m_w = (seed >> 16) + 1u;
 }
 
 

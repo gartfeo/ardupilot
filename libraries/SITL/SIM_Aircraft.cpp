@@ -345,6 +345,71 @@ void Aircraft::add_noise(float throttle)
 }
 
 /*
+  Turbulence's own random numbers (NavPy). Turbulence drew from glibc rand()
+  and rand_normal()'s shared cache, the state that baro, airspeed and IMU
+  noise draw from, so turning it on shifted every later noise draw. It now
+  draws from this xorshift64* state, which nothing else reads.
+*/
+namespace {
+uint64_t turbulence_rng_state;
+
+uint64_t splitmix64(uint64_t x)
+{
+    x += 0x9E3779B97F4A7C15ULL;
+    x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9ULL;
+    x = (x ^ (x >> 27)) * 0x94D049BB133111EBULL;
+    return x ^ (x >> 31);
+}
+
+// A uniform integer in 0..0x7FFFFFFF, the range of glibc's rand().
+int32_t turbulence_rand()
+{
+    if (turbulence_rng_state == 0) {
+        SITL::Aircraft::seed_turbulence_random(1);
+    }
+    uint64_t x = turbulence_rng_state;
+    x ^= x >> 12;
+    x ^= x << 25;
+    x ^= x >> 27;
+    turbulence_rng_state = x;
+    return int32_t((x * 0x2545F4914F6CDD1DULL) >> 33);
+}
+
+constexpr double TURBULENCE_RAND_MAX = 0x7FFFFFFF;
+
+// rand_normal()'s Box-Muller on turbulence_rand(), with its own cached draw.
+double turbulence_rand_normal()
+{
+    static double n2 = 0.0;
+    static bool n2_cached = false;
+    if (n2_cached) {
+        n2_cached = false;
+        return n2;
+    }
+    double x, y, r;
+    do {
+        x = 2.0 * turbulence_rand() / TURBULENCE_RAND_MAX - 1;
+        y = 2.0 * turbulence_rand() / TURBULENCE_RAND_MAX - 1;
+        r = x*x + y*y;
+    } while (is_zero(r) || r > 1.0);
+    const double d = sqrt(-2.0 * log(r)/r);
+    n2 = y * d;
+    n2_cached = true;
+    return x * d;
+}
+}  // namespace
+
+void Aircraft::seed_turbulence_random(uint32_t seed)
+{
+    // splitmix64 never maps two seeds to one state; 0 is skipped, as
+    // xorshift sticks there.
+    turbulence_rng_state = splitmix64(seed);
+    if (turbulence_rng_state == 0) {
+        turbulence_rng_state = 0x9E3779B97F4A7C15ULL;
+    }
+}
+
+/*
   normal distribution random numbers
   See
   http://en.literateprograms.org/index.php?title=Special:DownloadCode/Box-Muller_transform_%28C%29&oldid=7011
@@ -897,12 +962,13 @@ void Aircraft::update_wind(const struct sitl_input &input)
 
     if (wind_turb > 0 && !on_ground()) {
 
-        turbulence_azimuth = turbulence_azimuth + (2 * rand());
+        // 2 * rand() as before, wrapped in 32 bits without signed overflow
+        turbulence_azimuth = turbulence_azimuth + int32_t(2u * uint32_t(turbulence_rand()));
 
         turbulence_horizontal_speed =
-                static_cast<float>(turbulence_horizontal_speed * iir_coef+wind_turb * rand_normal(0, 1) * (1 - iir_coef));
+                static_cast<float>(turbulence_horizontal_speed * iir_coef+wind_turb * turbulence_rand_normal() * (1 - iir_coef));
 
-        turbulence_vertical_speed = static_cast<float>((turbulence_vertical_speed * iir_coef) + (wind_turb * rand_normal(0, 1) * (1 - iir_coef)));
+        turbulence_vertical_speed = static_cast<float>((turbulence_vertical_speed * iir_coef) + (wind_turb * turbulence_rand_normal() * (1 - iir_coef)));
 
         wind_ef += Vector3f(
             cosf(radians(turbulence_azimuth)) * turbulence_horizontal_speed,

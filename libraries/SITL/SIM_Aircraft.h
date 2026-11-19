@@ -101,6 +101,10 @@ public:
     /* return normal distribution random numbers */
     static double rand_normal(double mean, double stddev);
 
+    // Restart turbulence's own random numbers from a seed (NavPy serial-step
+    // SITL, NAVPY_STEP_RNG_SEED). Unseeded, they start from seed 1.
+    static void seed_turbulence_random(uint32_t seed);
+
     // get frame rate of model in Hz
     float get_rate_hz(void) const { return rate_hz; }
 

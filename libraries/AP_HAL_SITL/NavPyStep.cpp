@@ -3,6 +3,7 @@
 #include <AP_HAL/AP_HAL.h>
 #include <AP_Math/AP_Math.h>
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+#include <SITL/SIM_Aircraft.h>
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
@@ -130,6 +131,7 @@ void seed_random()
     srandom(unsigned(n));
     srand(unsigned(n));
     seed_random16(uint32_t(n));
+    SITL::Aircraft::seed_turbulence_random(uint32_t(n));
 }
 
 int32_t helper_created()

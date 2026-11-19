@@ -23,8 +23,9 @@ uint32_t helper_jitter_us();
 
 // Seed the SITL's random numbers from NAVPY_STEP_RNG_SEED (decimal,
 // 1..4294967295; only in the mode), once at SITL start before any sensor
-// draw: glibc random()/rand() and get_random16. Unset, nothing changes:
-// glibc's default seed 1 and get_random16's fixed seeds, as before.
+// draw: glibc random()/rand(), get_random16 and turbulence's own state
+// (SITL::Aircraft::seed_turbulence_random). Unset: glibc's default seed 1,
+// get_random16's fixed seeds and turbulence seed 1.
 // Contract: navpy docs/design/deterministic_dev_sim.md, section 2.
 void seed_random();
 
