@@ -72,6 +72,10 @@ bool helper_in_turns();
 // That helper's blocking take: try_take(ctx) until it succeeds, parked until
 // the next clock step after each failure, so it retries in its turn.
 void helper_take(bool (*try_take)(void *ctx), void *ctx);
+// The main thread's blocking lock take in serial-step mode: try, and while the
+// lock is held lend the helpers retrying a lock a turn at the current clock
+// (a helper may hold this lock while it retries one the main thread gave).
+void main_take(bool (*try_take)(void *ctx), void *ctx);
 
 // Abort with the invalid marker (protocol or contract fault).
 [[noreturn]] void fail(const char *reason);

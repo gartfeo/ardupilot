@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <sched.h>
 #include <unistd.h>
 
 namespace HALSITL {
@@ -31,6 +32,12 @@ std::atomic<uint64_t> start_until[MAX_HELPERS];
 // The slot whose helper may run now (wait_helpers_parked); -1: none.
 std::atomic<int32_t> turn{-1};
 thread_local int32_t my_slot = -1;
+// A helper retrying a lock (helper_take) runs at its next clock step, or when
+// the main thread lends a turn (main_take): it is lent one while its seen
+// epoch differs from lend_epoch, and takes the lend by catching up.
+std::atomic<uint32_t> lend_epoch{0};
+std::atomic<bool> retrying[MAX_HELPERS];
+std::atomic<uint32_t> retry_seen[MAX_HELPERS];
 // Most a helper wait is stretched: enough to reorder helper wake-ups against
 // the main loop at any speedup, small enough to keep runs short.
 constexpr uint32_t MAX_HELPER_JITTER_US = 2000;
@@ -47,6 +54,11 @@ uint64_t wall_now_us()
     timespec t{};
     clock_gettime(CLOCK_MONOTONIC, &t);
     return uint64_t(t.tv_sec) * 1000000 + t.tv_nsec / 1000;
+}
+
+bool lent(int32_t slot)
+{
+    return retrying[slot].load() && retry_seen[slot].load() != lend_epoch.load();
 }
 
 void notify_parked()
@@ -154,6 +166,7 @@ int32_t helper_created()
 static void free_slot(int32_t slot)
 {
     helper_until[slot] = 0;
+    retrying[slot] = false;
     slot_created[slot] = false;
     slot_used[slot] = false;
     notify_parked();
@@ -209,7 +222,7 @@ void wait_helpers_parked(uint64_t now_us, uint64_t wall_deadline_us)
         // a created helper runs outside a turn (it is starting).
         const int32_t current = turn.load();
         bool busy = current >= 0 && slot_used[current].load() &&
-            helper_until[current].load() <= now_us;
+            (helper_until[current].load() <= now_us || lent(current));
         int32_t next = -1;
         for (int32_t i = 0; !busy && i < MAX_HELPERS; i++) {
             if (!slot_used[i].load() || !slot_created[i].load()) {
@@ -218,7 +231,7 @@ void wait_helpers_parked(uint64_t now_us, uint64_t wall_deadline_us)
             const uint64_t until = helper_until[i].load();
             if (until == 0) {
                 busy = true;
-            } else if (until <= now_us && next < 0) {
+            } else if ((until <= now_us || lent(i)) && next < 0) {
                 next = i;
             }
         }
@@ -266,8 +279,32 @@ bool helper_in_turns()
 
 void helper_take(bool (*try_take)(void *ctx), void *ctx)
 {
+    retry_seen[my_slot] = lend_epoch.load();
+    retrying[my_slot] = true;
     while (!try_take(ctx)) {
         helper_wait(AP_HAL::micros64() + 1);
+    }
+    retrying[my_slot] = false;
+}
+
+void main_take(bool (*try_take)(void *ctx), void *ctx)
+{
+    const uint64_t deadline = wall_now_us() + HELPER_GATE_WALL_US;
+    while (!try_take(ctx)) {
+        // A parked helper may hold the lock while it retries another one that
+        // this thread has since given: lend the retrying helpers a turn at this
+        // clock, in slot order, and try again. A holder outside the turns runs
+        // on its own; an ABBA cycle is a fault, never a hang.
+        if (wall_now_us() >= deadline) {
+            fail("lock_wait");
+        }
+        {
+            std::lock_guard<std::mutex> hold(gate_mutex);
+            lend_epoch++;
+            clock_cv.notify_all();
+        }
+        wait_helpers_parked(AP_HAL::micros64(), deadline);
+        sched_yield();
     }
 }
 
@@ -287,9 +324,13 @@ void helper_sleep(uint64_t until_us)
         std::unique_lock<std::mutex> hold(gate_mutex);
         const bool in_turns = my_slot >= 0 && slot_created[my_slot].load();
         for (;;) {
-            const bool due = AP_HAL::micros64() >= until_us;
+            const bool due = AP_HAL::micros64() >= until_us || (in_turns && lent(my_slot));
             if (due && (!in_turns || turn.load() == my_slot)) {
-                break;  // its time has come and it is its turn
+                if (in_turns) {  // running from now: the gate waits for its next wait
+                    helper_until[my_slot] = 0;
+                    retry_seen[my_slot] = lend_epoch.load();  // a lend is taken
+                }
+                break;  // its time has come (or a lent turn) and it is its turn
             }
             // No early return: a helper that left here before its time and
             // then slept its jitter unlocked could find the clock moved past

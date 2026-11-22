@@ -52,6 +52,12 @@ bool Semaphore::take(uint32_t timeout_ms)
             }, this);
             return true;
         }
+        if (NavPyStep::enabled() && hal.scheduler->in_main_thread()) {
+            NavPyStep::main_take([](void *self) {
+                return static_cast<Semaphore *>(self)->take_nonblocking();
+            }, this);
+            return true;
+        }
         if (pthread_mutex_lock(&_lock) == 0) {
             owner = pthread_self();
             take_count++;
