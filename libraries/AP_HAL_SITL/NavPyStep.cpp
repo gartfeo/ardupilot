@@ -33,9 +33,9 @@ std::atomic<uint64_t> start_until[MAX_HELPERS];
 std::atomic<int32_t> turn{-1};
 thread_local int32_t my_slot = -1;
 // A helper retrying a lock (helper_take) runs at its next clock step, or when
-// the main thread lends a turn (main_take): it is lent one while its seen
-// epoch differs from lend_epoch, and takes the lend by catching up.
-std::atomic<uint32_t> lend_epoch{0};
+// the main thread lends it a turn (main_take): it is lent one while its seen
+// epoch differs from its slot's lend_epoch, and takes the lend by catching up.
+std::atomic<uint32_t> lend_epoch[MAX_HELPERS];
 std::atomic<bool> retrying[MAX_HELPERS];
 std::atomic<uint32_t> retry_seen[MAX_HELPERS];
 // Each slot's thread: main_take lends only when a helper in turns holds the lock.
@@ -60,7 +60,7 @@ uint64_t wall_now_us()
 
 bool lent(int32_t slot)
 {
-    return retrying[slot].load() && retry_seen[slot].load() != lend_epoch.load();
+    return retrying[slot].load() && retry_seen[slot].load() != lend_epoch[slot].load();
 }
 
 void notify_parked()
@@ -286,7 +286,7 @@ bool helper_in_turns()
 
 void helper_take(bool (*try_take)(void *ctx), void *ctx)
 {
-    retry_seen[my_slot] = lend_epoch.load();
+    retry_seen[my_slot] = lend_epoch[my_slot].load();
     retrying[my_slot] = true;
     while (!try_take(ctx)) {
         helper_wait(AP_HAL::micros64() + 1);
@@ -294,15 +294,16 @@ void helper_take(bool (*try_take)(void *ctx), void *ctx)
     retrying[my_slot] = false;
 }
 
-static bool held_in_turns(pthread_t holder)
+// The slot of the helper in turns that is the lock's holder; -1: none.
+static int32_t holder_slot(pthread_t holder)
 {
     for (int32_t i = 0; i < MAX_HELPERS; i++) {
         if (slot_used[i].load() && slot_created[i].load() &&
             pthread_equal(slot_thread[i].load(), holder)) {
-            return true;
+            return i;
         }
     }
-    return false;
+    return -1;
 }
 
 void main_take(bool (*try_take)(void *ctx), pthread_t (*holder)(void *ctx), void *ctx)
@@ -310,21 +311,22 @@ void main_take(bool (*try_take)(void *ctx), pthread_t (*holder)(void *ctx), void
     const uint64_t deadline = wall_now_us() + HELPER_GATE_WALL_US;
     while (!try_take(ctx)) {
         // A parked helper may hold the lock while it retries another one that
-        // this thread has since given: lend the retrying helpers a turn at this
-        // clock, in slot order, and try again. Only then: a holder outside the
-        // turns runs on its own, and this thread waits for it as a blocking
-        // take would, so no helper runs at a time set by the wall clock. An
-        // ABBA cycle is a fault, never a hang.
+        // this thread has since given: lend that helper, and no other, a turn
+        // at this clock, and try again. A holder outside the turns runs on its
+        // own, and this thread waits for it as a blocking take would; no other
+        // helper is lent a turn, so none takes a lock at a time set by the wall
+        // clock. An ABBA cycle is a fault, never a hang.
         if (wall_now_us() >= deadline) {
             fail("lock_wait");
         }
-        if (!held_in_turns(holder(ctx))) {
+        const int32_t slot = holder_slot(holder(ctx));
+        if (slot < 0) {
             sched_yield();
             continue;
         }
         {
             std::lock_guard<std::mutex> hold(gate_mutex);
-            lend_epoch++;
+            lend_epoch[slot]++;
             clock_cv.notify_all();
         }
         wait_helpers_parked(AP_HAL::micros64(), deadline);
@@ -352,7 +354,7 @@ void helper_sleep(uint64_t until_us)
             if (due && (!in_turns || turn.load() == my_slot)) {
                 if (in_turns) {  // running from now: the gate waits for its next wait
                     helper_until[my_slot] = 0;
-                    retry_seen[my_slot] = lend_epoch.load();  // a lend is taken
+                    retry_seen[my_slot] = lend_epoch[my_slot].load();  // a lend is taken
                 }
                 break;  // its time has come (or a lent turn) and it is its turn
             }

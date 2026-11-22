@@ -23,11 +23,11 @@ Semaphore::Semaphore()
 bool Semaphore::give()
 {
     take_count--;
+    if (take_count == 0) {  // before the unlock: never over the next holder's mark
+        set_owner((pthread_t)-1);
+    }
     if (pthread_mutex_unlock(&_lock) != 0) {
         AP_HAL::panic("Bad semaphore usage");
-    }
-    if (take_count == 0) {
-        owner = (pthread_t)-1;
     }
     return true;
 }
@@ -35,7 +35,7 @@ bool Semaphore::give()
 void Semaphore::check_owner() const
 {
     // should probably make sure we're holding the semaphore here....
-    if (owner != pthread_self()) {
+    if (__atomic_load_n(&owner, __ATOMIC_RELAXED) != pthread_self()) {
         AP_HAL::panic("Wrong owner");
     }
 }
@@ -55,20 +55,20 @@ bool Semaphore::take(uint32_t timeout_ms)
         if (NavPyStep::enabled() && hal.scheduler->in_main_thread()) {
             NavPyStep::main_take([](void *self) {
                 return static_cast<Semaphore *>(self)->take_nonblocking();
-            }, [](void *self) {  // set by the holder under the lock: a relaxed read
+            }, [](void *self) {  // written atomically by every taker and giver
                 return __atomic_load_n(&static_cast<Semaphore *>(self)->owner, __ATOMIC_RELAXED);
             }, this);
             return true;
         }
         if (pthread_mutex_lock(&_lock) == 0) {
-            owner = pthread_self();
+            set_owner(pthread_self());
             take_count++;
             return true;
         }
         return false;
     }
     if (take_nonblocking()) {
-        owner = pthread_self();
+        set_owner(pthread_self());
         return true;
     }
     uint64_t start = AP_HAL::micros64();
@@ -77,7 +77,7 @@ bool Semaphore::take(uint32_t timeout_ms)
         hal.scheduler->delay_microseconds(200);
         Scheduler::from(hal.scheduler)->set_in_semaphore_take_wait(false);
         if (take_nonblocking()) {
-            owner = pthread_self();
+            set_owner(pthread_self());
             return true;
         }
     } while ((AP_HAL::micros64() - start) < timeout_ms * 1000);
@@ -87,7 +87,7 @@ bool Semaphore::take(uint32_t timeout_ms)
 bool Semaphore::take_nonblocking()
 {
     if (pthread_mutex_trylock(&_lock) == 0) {
-        owner = pthread_self();
+        set_owner(pthread_self());
         take_count++;
         return true;
     }

@@ -19,7 +19,8 @@ public:
 
 protected:
     pthread_mutex_t _lock;
-    pthread_t owner;
+    pthread_t owner;  // read by NavPy serial-step's main_take while another thread holds the lock
+    void set_owner(pthread_t thread) { __atomic_store_n(&owner, thread, __ATOMIC_RELAXED); }
 
     // keep track the recursion level to ensure we only disown the
     // semaphore once we're done with it
