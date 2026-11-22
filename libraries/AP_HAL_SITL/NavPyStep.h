@@ -4,6 +4,7 @@
   and the clock. Inert unless NAVPY_SERIAL_STEP=1 is set.
   Contract: navpy docs/design/lockstep_contracts.md (UART, Firmware helpers).
  */
+#include <pthread.h>
 #include <stdint.h>
 
 namespace HALSITL {
@@ -75,7 +76,9 @@ void helper_take(bool (*try_take)(void *ctx), void *ctx);
 // The main thread's blocking lock take in serial-step mode: try, and while the
 // lock is held lend the helpers retrying a lock a turn at the current clock
 // (a helper may hold this lock while it retries one the main thread gave).
-void main_take(bool (*try_take)(void *ctx), void *ctx);
+// It lends only while a helper in turns holds the lock (``holder``: the lock's
+// owner thread); for any other holder it waits as a blocking take.
+void main_take(bool (*try_take)(void *ctx), pthread_t (*holder)(void *ctx), void *ctx);
 
 // Abort with the invalid marker (protocol or contract fault).
 [[noreturn]] void fail(const char *reason);

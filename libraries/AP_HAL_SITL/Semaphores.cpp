@@ -55,6 +55,8 @@ bool Semaphore::take(uint32_t timeout_ms)
         if (NavPyStep::enabled() && hal.scheduler->in_main_thread()) {
             NavPyStep::main_take([](void *self) {
                 return static_cast<Semaphore *>(self)->take_nonblocking();
+            }, [](void *self) {  // set by the holder under the lock: a relaxed read
+                return __atomic_load_n(&static_cast<Semaphore *>(self)->owner, __ATOMIC_RELAXED);
             }, this);
             return true;
         }

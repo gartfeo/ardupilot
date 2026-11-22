@@ -38,6 +38,8 @@ thread_local int32_t my_slot = -1;
 std::atomic<uint32_t> lend_epoch{0};
 std::atomic<bool> retrying[MAX_HELPERS];
 std::atomic<uint32_t> retry_seen[MAX_HELPERS];
+// Each slot's thread: main_take lends only when a helper in turns holds the lock.
+std::atomic<pthread_t> slot_thread[MAX_HELPERS];
 // Most a helper wait is stretched: enough to reorder helper wake-ups against
 // the main loop at any speedup, small enough to keep runs short.
 constexpr uint32_t MAX_HELPER_JITTER_US = 2000;
@@ -167,6 +169,7 @@ static void free_slot(int32_t slot)
 {
     helper_until[slot] = 0;
     retrying[slot] = false;
+    slot_thread[slot] = pthread_t();
     slot_created[slot] = false;
     slot_used[slot] = false;
     notify_parked();
@@ -203,6 +206,7 @@ void helper_wait_begin(uint64_t until_us)
     if (my_slot < 0) {
         fail("helper_slots");  // more live helpers than slots
     }
+    slot_thread[my_slot] = pthread_self();
     helper_until[my_slot] = until_us;
     notify_parked();
 }
@@ -269,6 +273,9 @@ void helper_start(int32_t slot)
         return;
     }
     my_slot = slot;
+    if (slot >= 0) {
+        slot_thread[slot] = pthread_self();
+    }
     helper_wait(slot >= 0 ? start_until[slot].load() : AP_HAL::micros64() + 1);
 }
 
@@ -287,16 +294,33 @@ void helper_take(bool (*try_take)(void *ctx), void *ctx)
     retrying[my_slot] = false;
 }
 
-void main_take(bool (*try_take)(void *ctx), void *ctx)
+static bool held_in_turns(pthread_t holder)
+{
+    for (int32_t i = 0; i < MAX_HELPERS; i++) {
+        if (slot_used[i].load() && slot_created[i].load() &&
+            pthread_equal(slot_thread[i].load(), holder)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void main_take(bool (*try_take)(void *ctx), pthread_t (*holder)(void *ctx), void *ctx)
 {
     const uint64_t deadline = wall_now_us() + HELPER_GATE_WALL_US;
     while (!try_take(ctx)) {
         // A parked helper may hold the lock while it retries another one that
         // this thread has since given: lend the retrying helpers a turn at this
-        // clock, in slot order, and try again. A holder outside the turns runs
-        // on its own; an ABBA cycle is a fault, never a hang.
+        // clock, in slot order, and try again. Only then: a holder outside the
+        // turns runs on its own, and this thread waits for it as a blocking
+        // take would, so no helper runs at a time set by the wall clock. An
+        // ABBA cycle is a fault, never a hang.
         if (wall_now_us() >= deadline) {
             fail("lock_wait");
+        }
+        if (!held_in_turns(holder(ctx))) {
+            sched_yield();
+            continue;
         }
         {
             std::lock_guard<std::mutex> hold(gate_mutex);
