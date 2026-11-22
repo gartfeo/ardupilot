@@ -67,6 +67,10 @@ uint8_t frame[MAX_FRAME];
 uint8_t reply[MAX_REPLY + 1];  // one spare byte detects oversize replies
 
 bool configured, enabled;
+// The CRC of the looping scripts a lockstep root runs on purpose
+// (nav_watchdog.lua), from NAVPY_STEP_LOOPING_SCRIPTS_CRC; 0, unset, for a
+// root whose only script is the one-shot aas_params.lua.
+uint32_t looping_scripts_crc;
 int fd = -1;
 uint64_t boot_id, deadline_us, tick;
 
@@ -95,6 +99,11 @@ void configure()
     if (getenv("NAVPY_GUIDANCE_MODE") || getenv("NAVPY_STEP_MODE")) { fail("exclusive_modes"); }
     boot_id = env_number("NAVPY_STEP_BOOT_ID");
     deadline_us = env_number("NAVPY_STEP_DEADLINE_US");
+    if (getenv("NAVPY_STEP_LOOPING_SCRIPTS_CRC") != nullptr) {
+        const uint64_t crc = env_number("NAVPY_STEP_LOOPING_SCRIPTS_CRC");
+        if (crc > UINT32_MAX) { fail("configuration"); }
+        looping_scripts_crc = uint32_t(crc);
+    }
     for (uint8_t port = 0; port < PORTS; port++) {
         if (SITL::NavPyStepPort::for_port(port) == nullptr) { fail("ports_not_navpystep"); }
     }
@@ -128,11 +137,15 @@ void connect_peer()
 bool helpers_quiet()
 {
 #if AP_SCRIPTING_ENABLED
-    // aas_params.lua is one-shot and the only script in a lockstep root, so
-    // a nonzero loaded and a zero running checksum mean it has finished
-    // (with several scripts equal CRCs could cancel in the XOR).
-    const bool scripts_done = lua_scripts::get_loaded_checksum() != 0 &&
-                              lua_scripts::get_running_checksum() == 0;
+    // aas_params.lua is one-shot. With no looping script, a nonzero loaded and
+    // a zero running checksum mean it has finished. With looping scripts, the
+    // running checksum is theirs alone once it has finished: the XOR of the
+    // running scripts' CRCs equals the configured one, and the loaded one
+    // differs from it (aas_params.lua was loaded too). Equal CRCs could cancel
+    // in the XOR, so the root names its scripts' CRC rather than a count.
+    const uint32_t loaded = lua_scripts::get_loaded_checksum();
+    const bool scripts_done = loaded != 0 && loaded != looping_scripts_crc &&
+                              lua_scripts::get_running_checksum() == looping_scripts_crc;
 #else
     const bool scripts_done = false;
 #endif
