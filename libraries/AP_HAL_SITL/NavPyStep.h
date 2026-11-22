@@ -64,6 +64,14 @@ void helper_wait(uint64_t until_us);
 // step, so it never runs alongside the main thread that created it (the FTP
 // worker starts on the first FTP request, mid-loop).
 void helper_start(int32_t slot);
+// A blocking lock take: true when the caller is a helper that runs in turns.
+// Such a helper must never block in the kernel on a held lock: the holder (the
+// main thread at a clock step, or a parked helper) gives it back only after
+// this helper parks, so the gate and the helper would wait on each other.
+bool helper_in_turns();
+// That helper's blocking take: try_take(ctx) until it succeeds, parked until
+// the next clock step after each failure, so it retries in its turn.
+void helper_take(bool (*try_take)(void *ctx), void *ctx);
 
 // Abort with the invalid marker (protocol or contract fault).
 [[noreturn]] void fail(const char *reason);

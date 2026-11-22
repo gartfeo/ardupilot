@@ -4,6 +4,7 @@
 
 #include "Semaphores.h"
 #include "Scheduler.h"
+#include "NavPyStep.h"
 
 extern const AP_HAL::HAL& hal;
 
@@ -42,6 +43,15 @@ void Semaphore::check_owner() const
 bool Semaphore::take(uint32_t timeout_ms)
 {
     if (timeout_ms == HAL_SEMAPHORE_BLOCK_FOREVER) {
+        if (NavPyStep::helper_in_turns()) {
+            // NavPy serial-step: a helper parks while the lock is held (a
+            // scripting binding taking the scheduler semaphore that the main
+            // thread holds across a clock step), never blocks unparked.
+            NavPyStep::helper_take([](void *self) {
+                return static_cast<Semaphore *>(self)->take_nonblocking();
+            }, this);
+            return true;
+        }
         if (pthread_mutex_lock(&_lock) == 0) {
             owner = pthread_self();
             take_count++;

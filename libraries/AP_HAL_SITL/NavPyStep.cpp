@@ -259,6 +259,18 @@ void helper_start(int32_t slot)
     helper_wait(slot >= 0 ? start_until[slot].load() : AP_HAL::micros64() + 1);
 }
 
+bool helper_in_turns()
+{
+    return enabled() && my_slot >= 0 && slot_created[my_slot].load();
+}
+
+void helper_take(bool (*try_take)(void *ctx), void *ctx)
+{
+    while (!try_take(ctx)) {
+        helper_wait(AP_HAL::micros64() + 1);
+    }
+}
+
 void helper_wait(uint64_t until_us)
 {
     helper_wait_begin(until_us);
